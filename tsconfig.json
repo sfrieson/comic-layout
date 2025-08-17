@@ -9,7 +9,7 @@
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
     "target": "esnext",
-    "types": [],
+    "types": ["@types/wicg-file-system-access"],
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],

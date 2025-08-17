@@ -9,30 +9,21 @@ export function Root() {
   const appRef = useRef(new App());
   useAppHotkeys(appRef.current);
   const project = useStore(appRef.current.store, (state) => state.project);
+  const ref = useRef<HTMLCanvasElement>(null);
 
   useSplitPaneStyles();
 
-  if (!project) {
-    return <h1>Comic Layout!!</h1>;
-  }
-
   return (
     <SplitPane
       split="vertical"
       minSize={100}
       defaultSize={window.innerWidth - 250}
     >
-      <canvas style={{ width: "100%", height: "100%" }} />
-      <div>settings</div>
-    </SplitPane>
-  );
-  return (
-    <SplitPane
-      split="vertical"
-      minSize={100}
-      defaultSize={window.innerWidth - 250}
-    >
-      <canvas style={{ width: "100%", height: "100%" }} />
+      {project ? (
+        <canvas ref={ref} style={{ width: "100%", height: "100%" }} />
+      ) : (
+        <h1>Comic Layout!!!</h1>
+      )}
       <div>settings</div>
     </SplitPane>
   );
