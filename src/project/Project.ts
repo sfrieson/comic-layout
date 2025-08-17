@@ -1,11 +1,32 @@
-import { Page } from "./types.js";
+import { createStore } from "zustand";
+import { Project, projectSchema } from "./types.js";
 
-export class Project {
-  name: string;
-  pages: Page[];
+export const createProjectStore = () => {
+  const store = createStore<Project>(() => ({
+    name: "New Project",
+    pages: [],
+  }));
 
-  constructor(name = "New Project", pages: Page[] = []) {
-    this.name = name;
-    this.pages = pages;
-  }
-}
+  const projectActions = {
+    toJSON() {
+      return JSON.stringify(store.getState());
+    },
+
+    loadFile(json: string) {
+      const data = JSON.parse(json);
+
+      const parsed = projectSchema.parse(data);
+
+      store.setState(parsed);
+    },
+
+    setName(name: string) {
+      store.setState({ name });
+    },
+  };
+
+  return {
+    store,
+    actions: projectActions,
+  };
+};

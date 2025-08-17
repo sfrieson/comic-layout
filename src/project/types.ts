@@ -1,15 +1,23 @@
-export interface Artboard {
-  name: string;
-  width: number;
-  height: number;
-}
+import { z } from "zod/v4";
 
-export interface Page {
-  name: string;
-  artboard: Artboard;
-}
+export const artboardSchema = z.object({
+  name: z.string(),
+  width: z.number(),
+  height: z.number(),
+});
 
-export interface Project {
-  name: string;
-  pages: Page[];
-}
+export type Artboard = z.infer<typeof artboardSchema>;
+
+export const pageSchema = z.object({
+  name: z.string(),
+  artboard: artboardSchema,
+});
+
+export type Page = z.infer<typeof pageSchema>;
+
+export const projectSchema = z.object({
+  name: z.string(),
+  pages: z.array(pageSchema),
+});
+
+export type Project = z.infer<typeof projectSchema>;

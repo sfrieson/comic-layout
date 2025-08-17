@@ -1,15 +1,20 @@
-import { useEffect, useRef } from "react";
-import { App } from "../app/App.js";
+import { useEffect, useState } from "react";
+import { store as app, useAppStore } from "../app/App.js";
 import { useAppHotkeys } from "../app/hooks.js";
 
 import { SplitPane } from "@rexxars/react-split-pane";
-import { useStore } from "zustand";
+import { Inspector } from "../app/Inspector.js";
 
 export function Root() {
-  const appRef = useRef(new App());
-  useAppHotkeys(appRef.current);
-  const project = useStore(appRef.current.store, (state) => state.project);
-  const ref = useRef<HTMLCanvasElement>(null);
+  const project = useAppStore((state) => state.project);
+  useAppHotkeys();
+  const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (!canvasEl) return;
+    app.getState().registerCanvas(canvasEl);
+
+    return () => app.getState().unregisterCanvas(canvasEl);
+  }, [canvasEl]);
 
   useSplitPaneStyles();
 
@@ -17,14 +22,16 @@ export function Root() {
     <SplitPane
       split="vertical"
       minSize={100}
-      defaultSize={window.innerWidth - 250}
+      defaultSize={window.innerWidth - 300}
     >
       {project ? (
-        <canvas ref={ref} style={{ width: "100%", height: "100%" }} />
+        <canvas ref={setCanvasEl} style={{ width: "100%", height: "100%" }} />
       ) : (
         <h1>Comic Layout!!!</h1>
       )}
-      <div>settings</div>
+      <div>
+        <Inspector />
+      </div>
     </SplitPane>
   );
 }

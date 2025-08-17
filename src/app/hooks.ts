@@ -1,19 +1,14 @@
 import { useHotkeys } from "react-hotkeys-hook";
 
-import type { App } from "./App.js";
+import { store as app } from "./App.js";
 
-export function useAppHotkeys(app: App) {
-  useHotkeys("meta+n", (e: KeyboardEvent) => {
-    e.preventDefault();
-    app.createProject();
-  });
-
+export function useAppHotkeys() {
   useHotkeys("meta+o", (e: KeyboardEvent) => {
     e.preventDefault();
-    app.openFile();
+    app.getState().openFile();
   });
   useHotkeys("meta+n", (e: KeyboardEvent) => {
     e.preventDefault();
-    app.newFile();
+    app.getState().newFile();
   });
 }
