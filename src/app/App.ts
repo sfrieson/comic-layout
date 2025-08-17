@@ -20,6 +20,7 @@ interface AppState {
 
 export const store = createStore<AppState>(() => {
   const onProjectStateChange = () => {
+    store.getState().viewport?.render();
     store.getState().saveProject();
   };
 
