@@ -1,6 +1,6 @@
 import { createStore, useStore } from "zustand";
 
-import { createProjectStore } from "../project/Project.js";
+import { createProjectStore, loadProjectFile } from "../project/Project.js";
 import type { Project } from "../project/types.js";
 import { Viewport } from "./Viewport.js";
 import { expect } from "../utils/assert.js";
@@ -13,14 +13,13 @@ interface AppState {
   selection: Selection | null;
   registerCanvas: (canvas: HTMLCanvasElement) => void;
   unregisterCanvas: (canvas: HTMLCanvasElement) => void;
-  createProject: (json?: string) => void;
   openFile: () => Promise<void>;
   newFile: () => Promise<void>;
   saveProject: () => void;
 }
 
 export const store = createStore<AppState>(() => {
-  const onProjectStateChange = (state: Project) => {
+  const onProjectStateChange = () => {
     store.getState().saveProject();
   };
 
@@ -29,6 +28,7 @@ export const store = createStore<AppState>(() => {
   let writesArePending = false;
 
   async function saveProject() {
+    console.log("saveProject");
     writesArePending = true;
     const project = store.getState().project;
     const fileHandle = store.getState().fileHandle;
@@ -39,6 +39,17 @@ export const store = createStore<AppState>(() => {
     const writable = await fileHandle.createWritable();
     await writable.write(data);
     await writable.close();
+  }
+
+  function createProject(json?: string) {
+    let projectData;
+    if (json) projectData = loadProjectFile(json);
+    console.log({ projectData, json });
+    const project = createProjectStore(projectData);
+
+    unsubscriptToProject?.();
+    store.setState({ project });
+    unsubscriptToProject = project.store.subscribe(onProjectStateChange);
   }
 
   const appState: AppState = {
@@ -66,14 +77,8 @@ export const store = createStore<AppState>(() => {
         suggestedName: "NewComic.json",
         startIn: "desktop",
       });
-      const data = new Blob([JSON.stringify(store.getState().project)], {
-        type: "application/json",
-      });
-      const writable = await fileHandle.createWritable();
-      await writable.write(data);
-      await writable.close();
+      createProject();
       store.setState({ fileHandle });
-      store.getState().createProject(JSON.stringify(store.getState().project));
     },
 
     async openFile() {
@@ -95,7 +100,7 @@ export const store = createStore<AppState>(() => {
       reader.onload = (e) => {
         const string = e.target?.result as string;
         store.setState({ fileHandle });
-        store.getState().createProject(string);
+        createProject(string);
       };
 
       reader.onerror = (e) => {
@@ -103,15 +108,6 @@ export const store = createStore<AppState>(() => {
         console.error(e);
       };
       reader.readAsText(file);
-    },
-
-    createProject(json?: string) {
-      const project = createProjectStore();
-      if (json) project.actions.loadFile(json);
-
-      unsubscriptToProject?.();
-      store.setState({ project });
-      unsubscriptToProject = project.store.subscribe(onProjectStateChange);
     },
 
     saveProject() {
@@ -127,6 +123,7 @@ export const store = createStore<AppState>(() => {
 
       const timeout = setTimeout(() => {
         writesArePending = false;
+        saveProject();
       }, 10_000);
       window.addEventListener("beforeunload", saveNow);
     },

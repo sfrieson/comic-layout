@@ -14,9 +14,31 @@ export default defineConfig([
     plugins: { js },
     extends: ["js/recommended"],
     languageOptions: { globals: globals.browser },
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
   },
   tseslint.configs.recommended,
-  pluginReact.configs.flat.recommended,
+  {
+    files: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
+    plugins: {
+      pluginReact,
+    },
+    // rules: {
+    //   "react/jsx-uses-react": "error",
+    //   "react/jsx-uses-vars": "error",
+    // },
+  },
   pluginReactHooks.configs["recommended-latest"],
   pluginReact.configs.flat["jsx-runtime"],
   reactRefresh.configs.vite,

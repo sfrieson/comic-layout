@@ -8,13 +8,13 @@ export function Inspector() {
 
 function ProjectInspector() {
   const project = useAppStore((s) => s.project);
-  const createProject = useAppStore((s) => s.createProject);
+  const newFile = useAppStore((s) => s.newFile);
   const openFile = useAppStore((s) => s.openFile);
 
   if (!project)
     return (
       <div>
-        <button onClick={() => createProject()}>New Project</button>
+        <button onClick={() => newFile()}>New Project</button>
         <button onClick={() => openFile()}>Open Project</button>
       </div>
     );
@@ -23,18 +23,48 @@ function ProjectInspector() {
 }
 
 function LoadedProjectInspector() {
-  const name = useProjectStore((s) => s.name);
+  const project = useProjectStore((s) => s);
   const setName = useAppStore((s) => s.project?.actions.setName)!;
+  const setPageDimensions = useAppStore(
+    (s) => s.project?.actions.setPageDimensions,
+  )!;
   return (
     <div>
       <label>
         Name
         <input
           type="text"
-          value={name}
+          value={project.name}
           onChange={(e) => setName(e.target.value)}
         />
       </label>
+
+      <p>Page dimensions</p>
+      <div className="flex gap-2">
+        <label className="flex gap-2 items-center">
+          <span>W:</span>
+          <input
+            className="w-full"
+            type="number"
+            value={project.pageWidth}
+            onChange={(e) =>
+              setPageDimensions(e.target.valueAsNumber, project.pageHeight)
+            }
+          />
+        </label>
+
+        <label className="flex gap-2 items-center">
+          <span>H:</span>
+          <input
+            className="w-full"
+            type="number"
+            value={project.pageHeight}
+            onChange={(e) =>
+              setPageDimensions(project.pageWidth, e.target.valueAsNumber)
+            }
+          />
+        </label>
+      </div>
     </div>
   );
 }
