@@ -5,7 +5,7 @@ export interface ActionSet {
   undo: () => void;
 }
 
-interface ActionList extends Array<ActionList | ActionSet> {}
+type ActionList = Array<ActionList | ActionSet>;
 
 export function actionSet(action: () => void, undo: () => void): ActionSet {
   return { action, undo };

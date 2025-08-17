@@ -1,15 +1,11 @@
 import { useHotkeys } from "react-hotkeys-hook";
 
-export function App() {
-  useGlobalHotkeys();
+import type { App } from "./App.js";
 
-  return <h1>Comic Layout!!</h1>;
-}
-
-function useGlobalHotkeys() {
+export function useAppHotkeys(app: App) {
   useHotkeys("meta+n", (e: KeyboardEvent) => {
     e.preventDefault();
-    console.log("New Project");
+    app.createProject();
   });
 
   useHotkeys("meta+o", () => {
@@ -21,12 +17,11 @@ function useGlobalHotkeys() {
       if (!file) {
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const json = JSON.parse(e.target?.result as string);
-        console.log(json);
-      };
-      reader.readAsText(file);
+      // double-check filetype
+      if (file.type !== "application/json") {
+        return;
+      }
+      app.openFile(file);
     };
     input.click();
   });
