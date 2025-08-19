@@ -1,6 +1,6 @@
 import { store } from "./App.js";
 import { expect } from "../utils/assert.js";
-import { Project } from "../project/Project.js";
+import { Page, Project } from "../project/Project.js";
 
 const getProject = () => expect(store.getState().project, "Project not found");
 
@@ -32,4 +32,7 @@ export const setPageDimensions = (width: number, height: number) => {
   requestRender();
 };
 
-// setName('new name');
+export const addPage = () => {
+  getProject().pages.push(Page.create({ width: 100, height: 100 }));
+  requestRender();
+};

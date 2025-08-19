@@ -3,10 +3,9 @@ import { store } from "../app/App.js";
 import { useAppHotkeys } from "../app/hooks.js";
 
 import { SplitPane } from "@rexxars/react-split-pane";
-import { Inspector } from "../app/Inspector.js";
+import { Inspector } from "./Inspector.js";
 import { useStore } from "zustand";
 import { subscribeToChanges } from "../app/projectActions.js";
-import { Project } from "../project/Project.js";
 
 export function Root() {
   const project = useStore(store, (state) => state.project);
@@ -21,14 +20,10 @@ export function Root() {
     return () => store.getState().unregisterCanvas(canvasEl);
   }, [canvasEl]);
 
-  const onProjectStateChange = useCallback(
-    (p: Project) => {
-      console.log("onProjectStateChange", p);
-      viewport?.render();
-      saveProject();
-    },
-    [viewport, saveProject],
-  );
+  const onProjectStateChange = useCallback(() => {
+    viewport?.render();
+    saveProject();
+  }, [viewport, saveProject]);
 
   useEffect(() => {
     return subscribeToChanges(onProjectStateChange);

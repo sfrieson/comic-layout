@@ -7,6 +7,7 @@ import type { Project } from "../project/Project.js";
 import { loadProjectFile, serializeProject } from "../project/serialization.js";
 import { useSyncExternalStore } from "react";
 import { subscribeToChanges } from "./projectActions.js";
+import { Renderer } from "../renderer/Renderer.js";
 
 export const store = createStore(
   combine(
@@ -38,7 +39,10 @@ export const store = createStore(
 
       return {
         registerCanvas: (canvas: HTMLCanvasElement) => {
-          set({ canvas, viewport: new Viewport(canvas) });
+          set({
+            canvas,
+            viewport: new Viewport(canvas),
+          });
         },
         unregisterCanvas: (canvas: HTMLCanvasElement) => {
           set((state) =>
@@ -121,14 +125,12 @@ let cachedChange = { ["-1"]: null } as Record<number, Project | null>;
 
 export function useProject() {
   const project = useSyncExternalStore(subscribeToChanges, () => {
-    const project = store.getState().project;
-    if (!project) return null;
+    const project = expect(store.getState().project, "Project not found");
+
     const cached = cachedChange[project.meta._changes];
     if (cached) return cached;
 
-    const newProject = {
-      ...expect(store.getState().project, "Project not found"),
-    };
+    const newProject = { ...project };
 
     cachedChange = { [project.meta._changes]: newProject };
     return newProject;

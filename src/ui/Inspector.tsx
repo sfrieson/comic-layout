@@ -1,6 +1,6 @@
 import { useStore } from "zustand";
-import { store, useProject } from "./App.js";
-import { setName, setPageDimensions } from "./projectActions.js";
+import { store, useProject } from "../app/App.js";
+import { addPage, setName, setPageDimensions } from "../app/projectActions.js";
 
 export function Inspector() {
   const selection = useStore(store, (s) => s.selection);
@@ -67,6 +67,8 @@ function LoadedProjectInspector() {
           />
         </label>
       </div>
+
+      <button onClick={() => addPage()}>Add Page</button>
     </div>
   );
 }

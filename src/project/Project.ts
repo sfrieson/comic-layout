@@ -5,43 +5,73 @@ import {
   SerializedPage,
   SerializedProject,
 } from "./types.js";
-// import { v4 as uuid } from "uuid";
+import { v4 as uuid } from "uuid";
 
 type SeralizedNodeMap = Map<string, SerializedNode>;
 
-class Artboard {
+export class Artboard {
   type = "artboard" as const;
   id: string;
   width: number;
   height: number;
 
-  constructor(
+  constructor(opt: { id: string; width: number; height: number }) {
+    this.id = opt.id;
+    this.width = opt.width;
+    this.height = opt.height;
+  }
+
+  static create(opt: { width: number; height: number }) {
+    return new Artboard({
+      id: uuid(),
+      width: opt.width,
+      height: opt.height,
+    });
+  }
+  static fromSerialized(
     project: Project,
     nodeMap: SeralizedNodeMap,
     serialized: SerializedArtboard,
   ) {
-    this.id = serialized.id;
-    this.width = serialized.width;
-    this.height = serialized.height;
+    return new Artboard(serialized);
   }
 }
-class Page {
+export class Page {
   type = "page" as const;
   id: string;
   name: string;
   artboard: Artboard;
 
-  constructor(
+  constructor(opt: { id: string; name: string; artboard: Artboard }) {
+    this.id = opt.id;
+    this.name = opt.name;
+    this.artboard = opt.artboard;
+  }
+
+  static create(opt: { width: number; height: number }) {
+    return new Page({
+      id: uuid(),
+      name: "New Page",
+      artboard: Artboard.create(opt),
+    });
+  }
+  static fromSerialized(
     project: Project,
     nodeMap: SeralizedNodeMap,
     serialized: SerializedPage,
   ) {
-    this.id = serialized.id;
-    this.name = serialized.name;
-    const artboard = nodeMap.get(serialized.artboard);
-    assert(artboard?.type === "artboard", "Artboard not found");
-    this.artboard = new Artboard(project, nodeMap, artboard);
-    project.nodeMap.set(this.artboard.id, this.artboard);
+    const artboard = expectSerializedNode(
+      nodeMap.get(serialized.artboard),
+      "artboard",
+    );
+
+    const page = new Page({
+      ...serialized,
+      artboard: Artboard.fromSerialized(project, nodeMap, artboard),
+    });
+    project.nodeMap.set(page.artboard.id, page.artboard);
+
+    return page;
   }
 }
 
@@ -63,9 +93,8 @@ export class Project {
 
     this.pages =
       serialized?.pages.map((id) => {
-        const node = nodeMap.get(id);
-        assert(node?.type === "page", `Page ${id} not found`);
-        const page = new Page(this, nodeMap, node);
+        const node = expectSerializedNode(nodeMap.get(id), "page");
+        const page = Page.fromSerialized(this, nodeMap, node);
         this.nodeMap.set(page.id, page);
         return page;
       }) ?? [];
@@ -76,4 +105,19 @@ export class Project {
       _changes: 0,
     };
   }
+}
+
+export function assertSerialzedNode<T extends SerializedNode["type"]>(
+  node: SerializedNode | null | undefined,
+  type: T,
+): asserts node is Extract<SerializedNode, { type: T }> {
+  assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
+}
+
+export function expectSerializedNode<T extends SerializedNode["type"]>(
+  node: SerializedNode | null | undefined,
+  type: T,
+) {
+  assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
+  return node as Extract<SerializedNode, { type: T }>;
 }
