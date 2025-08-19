@@ -19,8 +19,15 @@ export const store = createStore(
       viewport: null as Viewport | null,
       history: createHistory(),
       selection: null as Selection | null,
+      ui: {
+        zoom: 1,
+        pan: { x: 0, y: 0 },
+      },
     },
     (set, get) => {
+      const setUI = (ui: Partial<ReturnType<typeof get>["ui"]>) => {
+        set({ ui: { ...get().ui, ...ui } });
+      };
       let writesArePending = false;
 
       async function saveProject() {
@@ -86,6 +93,12 @@ export const store = createStore(
             saveProject();
           }, 10_000);
           window.addEventListener("beforeunload", saveNow);
+        },
+        setZoom: (zoom: number) => {
+          setUI({ zoom: Math.min(Math.max(0.01, zoom), 32) });
+        },
+        setPan: (pan: { x: number; y: number }) => {
+          setUI({ pan });
         },
       };
     },

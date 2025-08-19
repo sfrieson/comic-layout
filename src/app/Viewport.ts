@@ -1,6 +1,6 @@
 import { Renderer } from "../renderer/Renderer.js";
 import { expect } from "../utils/assert.js";
-import { store as appStore } from "./App.js";
+import { store } from "./App.js";
 
 export class Viewport {
   #canvas: HTMLCanvasElement;
@@ -17,53 +17,38 @@ export class Viewport {
 
     this.#setCanvasSize();
 
-    this.setCanvasListeners();
+    this.#setCanvasListeners();
+
+    store.subscribe((state) => {
+      this.#setUIStateListener(state.ui);
+    });
   }
 
-  setCanvasListeners() {
+  #previousUIState: unknown;
+  #setUIStateListener(ui: unknown) {
+    if (ui === this.#previousUIState) return;
+    this.#previousUIState = ui;
+    this.render();
+  }
+
+  #setCanvasListeners() {
     // resizeobserver
     const resizeObserver = new ResizeObserver(() => {
       this.#setCanvasSize();
     });
     resizeObserver.observe(this.#canvas);
 
-    this.#canvas.addEventListener("mousedown", (e) => {
-      console.log("mousedown", e);
-    });
-    this.#canvas.addEventListener("mouseup", (e) => {
-      console.log("mouseup", e);
-    });
-
-    this.#canvas.addEventListener("mousemove", (e) => {
-      console.log("mousemove", e);
-    });
-
-    this.#canvas.addEventListener("mouseleave", (e) => {
-      console.log("mouseleave", e);
-    });
-
-    this.#canvas.addEventListener("mouseenter", (e) => {
-      console.log("mouseenter", e);
-    });
-
-    this.#canvas.addEventListener("mouseover", (e) => {
-      console.log("mouseover", e);
-    });
-
-    this.#canvas.addEventListener("mouseout", (e) => {
-      console.log("mouseout", e);
-    });
-
-    this.#canvas.addEventListener("mousewheel", (e) => {
-      console.log("mousewheel", e);
-    });
-
     this.#canvas.addEventListener("wheel", (e) => {
-      console.log("wheel", e);
-    });
-
-    this.#canvas.addEventListener("contextmenu", (e) => {
-      console.log("contextmenu", e);
+      if (e.ctrlKey) {
+        // `ctrlKey` is set by the browser and doesn't need the key to be pressed
+        e.preventDefault(); // don't zoom the browser
+        store.getState().setZoom(store.getState().ui.zoom + e.deltaY * -0.0125);
+      } else {
+        store.getState().setPan({
+          x: store.getState().ui.pan.x - e.deltaX,
+          y: store.getState().ui.pan.y - e.deltaY,
+        });
+      }
     });
   }
 
@@ -75,7 +60,8 @@ export class Viewport {
     this.#ctx.scale(devicePixelRatio, devicePixelRatio);
 
     this.#renderer.render(
-      expect(appStore.getState().project, "Project not found"),
+      expect(store.getState().project, "Project not found"),
+      store.getState().ui,
     );
   }
 
@@ -86,7 +72,8 @@ export class Viewport {
     requestAnimationFrame(() => {
       this.#renderQueued = false;
       this.#renderer.render(
-        expect(appStore.getState().project, "Project not found"),
+        expect(store.getState().project, "Project not found"),
+        store.getState().ui,
       );
     });
   }
