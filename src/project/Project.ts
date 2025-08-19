@@ -1,29 +1,31 @@
 import { assert } from "../utils/assert.js";
-import {
-  SerializedArtboard,
-  SerializedNode,
-  SerializedPage,
-  SerializedProject,
-} from "./types.js";
+import { SerializedNode, SerializedPage, SerializedProject } from "./types.js";
 import { v4 as uuid } from "uuid";
 
 type SeralizedNodeMap = Map<string, SerializedNode>;
-
-export class Artboard {
-  type = "artboard" as const;
+export class Page {
+  type = "page" as const;
   id: string;
+  name: string;
   width: number;
   height: number;
 
-  constructor(opt: { id: string; width: number; height: number }) {
+  constructor(opt: {
+    id: string;
+    name: string;
+    width: number;
+    height: number;
+  }) {
     this.id = opt.id;
+    this.name = opt.name;
     this.width = opt.width;
     this.height = opt.height;
   }
 
   static create(opt: { width: number; height: number }) {
-    return new Artboard({
+    return new Page({
       id: uuid(),
+      name: "New Page",
       width: opt.width,
       height: opt.height,
     });
@@ -31,51 +33,15 @@ export class Artboard {
   static fromSerialized(
     project: Project,
     nodeMap: SeralizedNodeMap,
-    serialized: SerializedArtboard,
-  ) {
-    return new Artboard(serialized);
-  }
-}
-export class Page {
-  type = "page" as const;
-  id: string;
-  name: string;
-  artboard: Artboard;
-
-  constructor(opt: { id: string; name: string; artboard: Artboard }) {
-    this.id = opt.id;
-    this.name = opt.name;
-    this.artboard = opt.artboard;
-  }
-
-  static create(opt: { width: number; height: number }) {
-    return new Page({
-      id: uuid(),
-      name: "New Page",
-      artboard: Artboard.create(opt),
-    });
-  }
-  static fromSerialized(
-    project: Project,
-    nodeMap: SeralizedNodeMap,
     serialized: SerializedPage,
   ) {
-    const artboard = expectSerializedNode(
-      nodeMap.get(serialized.artboard),
-      "artboard",
-    );
-
-    const page = new Page({
-      ...serialized,
-      artboard: Artboard.fromSerialized(project, nodeMap, artboard),
-    });
-    project.nodeMap.set(page.artboard.id, page.artboard);
+    const page = new Page(serialized);
 
     return page;
   }
 }
 
-export type Node = Artboard | Page;
+export type Node = Page;
 
 export class Project {
   nodeMap: Map<string, Node> = new Map();

@@ -45,8 +45,8 @@ export const setPageDimensions = (width: number, height: number) => {
     getProject().pages.map((page) => [
       page.id,
       {
-        width: page.artboard.width,
-        height: page.artboard.height,
+        width: page.width,
+        height: page.height,
       },
     ]),
   );
@@ -54,8 +54,8 @@ export const setPageDimensions = (width: number, height: number) => {
     history.actionSet(
       () => {
         getProject().pages.forEach((page) => {
-          page.artboard.width = width;
-          page.artboard.height = height;
+          page.width = width;
+          page.height = height;
         });
         projectUpdated();
       },
@@ -65,8 +65,8 @@ export const setPageDimensions = (width: number, height: number) => {
             originalDimensions[page.id],
             "Original dimensions not found",
           );
-          page.artboard.width = width;
-          page.artboard.height = height;
+          page.width = width;
+          page.height = height;
         });
         projectUpdated();
       },

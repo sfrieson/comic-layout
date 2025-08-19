@@ -19,12 +19,17 @@ export function loadProjectFile(json?: string): Project {
   return new Project(parsed);
 }
 
-function migrateProject<T>(parsed: T) {
-  // TODO
-  return parsed;
+function migrateProject(parsed: Record<string, unknown>) {
+  switch (parsed.meta.version) {
+    case 3:
+      parsed = removeArtboards(parsed);
+      parsed.meta.version = 4;
+      return parsed;
+  }
+  return parsed as unknown;
 }
 
-const CURRENT_SERIALIZATION_VERSION = 3;
+const CURRENT_SERIALIZATION_VERSION = 4;
 
 export function serializeProject(project: Project) {
   function traverse(
@@ -35,12 +40,6 @@ export function serializeProject(project: Project) {
       return node.flatMap((n) => traverse(n, nodes));
     }
     if (node.type === "page") {
-      nodes.push({
-        ...node,
-        artboard: node.artboard.id,
-      });
-      traverse(node.artboard, nodes);
-    } else if (node.type === "artboard") {
       nodes.push({
         ...node,
       });
@@ -60,4 +59,49 @@ export function serializeProject(project: Project) {
       version: CURRENT_SERIALIZATION_VERSION,
     },
   };
+}
+
+function removeArtboards(project: unknown) {
+  const oldProject = project as {
+    nodes: Array<
+      | { type: "artboard"; id: string; width: number; height: number }
+      | { type: "page"; id: string; artboard: string }
+    >;
+  };
+
+  const artboardMap = oldProject.nodes
+    .filter((node) => node.type === "artboard")
+    .reduce(
+      (acc, node) => {
+        acc[node.id] = node;
+        return acc;
+      },
+      {} as Record<
+        string,
+        { type: "artboard"; id: string; width: number; height: number }
+      >,
+    );
+
+  const newProject = {
+    ...oldProject,
+    nodes: oldProject.nodes.flatMap((node) => {
+      switch (node.type) {
+        case "artboard":
+          return [];
+        case "page": {
+          const { artboard: artboardId, ...rest } = node;
+          const artboard = artboardMap[artboardId];
+          return {
+            ...rest,
+            width: artboard?.width ?? 1080,
+            height: artboard?.height ?? 1080,
+          };
+        }
+        default:
+          return node;
+      }
+    }),
+  };
+
+  return newProject;
 }

@@ -30,10 +30,10 @@ export class Renderer {
     for (const page of project.pages) {
       const lineWidth = screen(1);
       context.save();
-      context.translate(-page.artboard.width / 2, -page.artboard.height / 2);
-      const { width, height } = page.artboard;
+      const { width, height } = page;
+      context.translate(-width / 2, -height / 2);
       context.fillStyle = "#fff";
-      context.fillRect(0, 0, page.artboard.width, page.artboard.height);
+      context.fillRect(0, 0, width, height);
       context.strokeStyle = "#000";
       context.lineWidth = lineWidth;
       context.strokeRect(0, 0, width, height);
