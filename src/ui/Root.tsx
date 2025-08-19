@@ -1,28 +1,47 @@
-import { useEffect, useState } from "react";
-import { store as app, useAppStore } from "../app/App.js";
+import { useCallback, useEffect, useState } from "react";
+import { store } from "../app/App.js";
 import { useAppHotkeys } from "../app/hooks.js";
 
 import { SplitPane } from "@rexxars/react-split-pane";
 import { Inspector } from "../app/Inspector.js";
+import { useStore } from "zustand";
+import { subscribeToChanges } from "../app/projectActions.js";
+import { Project } from "../project/Project.js";
 
 export function Root() {
-  const project = useAppStore((state) => state.project);
+  const project = useStore(store, (state) => state.project);
+  const viewport = useStore(store, (state) => state.viewport);
+  const saveProject = useStore(store, (state) => state.saveProject);
   useAppHotkeys();
   const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
   useEffect(() => {
     if (!canvasEl) return;
-    app.getState().registerCanvas(canvasEl);
+    store.getState().registerCanvas(canvasEl);
 
-    return () => app.getState().unregisterCanvas(canvasEl);
+    return () => store.getState().unregisterCanvas(canvasEl);
   }, [canvasEl]);
+
+  const onProjectStateChange = useCallback(
+    (p: Project) => {
+      console.log("onProjectStateChange", p);
+      viewport?.render();
+      saveProject();
+    },
+    [viewport, saveProject],
+  );
+
+  useEffect(() => {
+    return subscribeToChanges(onProjectStateChange);
+  }, [onProjectStateChange]);
 
   useSplitPaneStyles();
 
   return (
     <SplitPane
       split="vertical"
-      minSize={100}
-      defaultSize={window.innerWidth - 300}
+      minSize={150}
+      defaultSize={300}
+      primary="second"
     >
       {project ? (
         <canvas ref={setCanvasEl} style={{ width: "100%", height: "100%" }} />

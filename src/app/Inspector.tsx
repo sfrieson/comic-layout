@@ -1,15 +1,17 @@
-import { useAppStore, useProjectStore } from "./App.js";
+import { useStore } from "zustand";
+import { store, useProject } from "./App.js";
+import { setName, setPageDimensions } from "./projectActions.js";
 
 export function Inspector() {
-  const selection = useAppStore((s) => s.selection);
+  const selection = useStore(store, (s) => s.selection);
   if (!selection) return <ProjectInspector />;
   return <div>Selection Inspector</div>;
 }
 
 function ProjectInspector() {
-  const project = useAppStore((s) => s.project);
-  const newFile = useAppStore((s) => s.newFile);
-  const openFile = useAppStore((s) => s.openFile);
+  const project = useStore(store, (s) => s.project);
+  const newFile = useStore(store, (s) => s.newFile);
+  const openFile = useStore(store, (s) => s.openFile);
 
   if (!project)
     return (
@@ -23,18 +25,18 @@ function ProjectInspector() {
 }
 
 function LoadedProjectInspector() {
-  const project = useProjectStore((s) => s);
-  const setName = useAppStore((s) => s.project?.actions.setName)!;
-  const setPageDimensions = useAppStore(
-    (s) => s.project?.actions.setPageDimensions,
-  )!;
+  const project = useProject();
+  const name = project.meta.name;
+  const pageWidth = 1080;
+  const pageHeight = 1080;
+
   return (
-    <div>
+    <div className="p-2">
       <label>
         Name
         <input
           type="text"
-          value={project.name}
+          value={name}
           onChange={(e) => setName(e.target.value)}
         />
       </label>
@@ -46,9 +48,9 @@ function LoadedProjectInspector() {
           <input
             className="w-full"
             type="number"
-            value={project.pageWidth}
+            value={pageWidth}
             onChange={(e) =>
-              setPageDimensions(e.target.valueAsNumber, project.pageHeight)
+              setPageDimensions(e.target.valueAsNumber, pageHeight)
             }
           />
         </label>
@@ -58,9 +60,9 @@ function LoadedProjectInspector() {
           <input
             className="w-full"
             type="number"
-            value={project.pageHeight}
+            value={pageHeight}
             onChange={(e) =>
-              setPageDimensions(project.pageWidth, e.target.valueAsNumber)
+              setPageDimensions(pageWidth, e.target.valueAsNumber)
             }
           />
         </label>

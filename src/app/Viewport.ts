@@ -49,10 +49,8 @@ export class Viewport {
     this.#ctx.fillStyle = "#333";
     this.#ctx.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
 
-    const project = appStore.getState().project?.store.getState();
+    const project = appStore.getState().project;
     if (!project) return;
-
-    const { pageWidth, pageHeight } = project;
 
     // const focus = 0;
     const context = this.#ctx;
@@ -62,12 +60,13 @@ export class Viewport {
       this.#canvas.height / devicePixelRatio / 2,
     );
     // context.scale(focus, focus);
-    context.translate(-pageWidth / 2, -pageHeight / 2);
 
     for (const page of project.pages) {
+      context.save();
+      context.translate(-page.artboard.width / 2, -page.artboard.height / 2);
       const { width, height } = page.artboard;
       context.fillStyle = "#fff";
-      context.fillRect(0, 0, pageWidth, pageHeight);
+      context.fillRect(0, 0, page.artboard.width, page.artboard.height);
       context.strokeStyle = "#000";
       const lineWidth = 1;
       context.lineWidth = lineWidth;
@@ -77,6 +76,8 @@ export class Viewport {
         width + lineWidth * 2,
         height + lineWidth * 2,
       );
+      context.restore();
+
       context.translate(width, 0);
     }
 

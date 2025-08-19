@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+body {
+  overscroll-behavior: none;
+}
+
 input {
   @apply w-full;
   @apply border-2 border-gray-300;

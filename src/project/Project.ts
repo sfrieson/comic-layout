@@ -1,87 +1,79 @@
-import { createStore } from "zustand";
-import { Project, serializedProjectSchema } from "./types.js";
-import { v4 as uuid } from "uuid";
+import { assert } from "../utils/assert.js";
+import {
+  SerializedArtboard,
+  SerializedNode,
+  SerializedPage,
+  SerializedProject,
+} from "./types.js";
+// import { v4 as uuid } from "uuid";
 
-const CURRENT_VERSION = 1;
+type SeralizedNodeMap = Map<string, SerializedNode>;
 
-const INSTAGRAM_MAX = 1080;
+class Artboard {
+  type = "artboard" as const;
+  id: string;
+  width: number;
+  height: number;
 
-// Instagram thumbnail crop is 3:4
+  constructor(
+    project: Project,
+    nodeMap: SeralizedNodeMap,
+    serialized: SerializedArtboard,
+  ) {
+    this.id = serialized.id;
+    this.width = serialized.width;
+    this.height = serialized.height;
+  }
+}
+class Page {
+  type = "page" as const;
+  id: string;
+  name: string;
+  artboard: Artboard;
 
-export function initProject(): Project {
-  const date = new Date().toISOString();
-  return {
-    name: "New Project",
-    pages: [
-      {
-        id: uuid(),
-        name: "Page 1",
-        artboard: {
-          id: uuid(),
-          width: INSTAGRAM_MAX,
-          height: INSTAGRAM_MAX,
-        },
-      },
-    ],
-    pageWidth: INSTAGRAM_MAX,
-    pageHeight: INSTAGRAM_MAX,
-    meta: {
-      createdAt: date,
-      updatedAt: date,
-      version: CURRENT_VERSION,
-    },
-  };
+  constructor(
+    project: Project,
+    nodeMap: SeralizedNodeMap,
+    serialized: SerializedPage,
+  ) {
+    this.id = serialized.id;
+    this.name = serialized.name;
+    const artboard = nodeMap.get(serialized.artboard);
+    assert(artboard?.type === "artboard", "Artboard not found");
+    this.artboard = new Artboard(project, nodeMap, artboard);
+    project.nodeMap.set(this.artboard.id, this.artboard);
+  }
 }
 
-export function loadProjectFile(json: string) {
-  const data = JSON.parse(json);
+export type Node = Artboard | Page;
 
-  const parsed = serializedProjectSchema.parse(data);
-
-  const pageWidth = parsed.pages.at(0)?.artboard.width ?? INSTAGRAM_MAX;
-  const pageHeight = parsed.pages.at(0)?.artboard.height ?? INSTAGRAM_MAX;
-
-  const project: Project = {
-    ...parsed,
-    pageWidth,
-    pageHeight,
-    meta: {
-      ...parsed.meta,
-      updatedAt: new Date().toISOString(),
-    },
+export class Project {
+  nodeMap: Map<string, Node> = new Map();
+  pages: Page[];
+  meta: {
+    name: string;
+    createdAt: string;
+    _changes: number;
   };
 
-  return project;
+  constructor(serialized?: SerializedProject | null) {
+    const nodeMap = new Map(
+      serialized?.nodes.map((node) => [node.id, node]) ?? [],
+    );
+
+    this.pages =
+      serialized?.pages.map((id) => {
+        const node = nodeMap.get(id);
+        assert(node?.type === "page", `Page ${id} not found`);
+        const page = new Page(this, nodeMap, node);
+        this.nodeMap.set(page.id, page);
+        return page;
+      }) ?? [];
+
+    this.meta = {
+      name: serialized?.meta?.name ?? "New Project",
+      createdAt: serialized?.meta?.createdAt ?? new Date().toISOString(),
+      _changes: 0,
+    };
+  }
 }
-
-export const createProjectStore = (initialState = initProject()) => {
-  const store = createStore(() => initialState);
-
-  const projectActions = {
-    toJSON() {
-      const { pageWidth, pageHeight, ...state } = store.getState();
-      return JSON.stringify(state);
-    },
-
-    setName(name: string) {
-      store.setState({ name });
-    },
-
-    setPageDimensions(width: number, height: number) {
-      console.log("setPageDimensions", width, height);
-      store.setState((s) => ({
-        pageWidth: width,
-        pageHeight: height,
-        pages: s.pages.map((page) => ({
-          ...page,
-          artboard: { ...page.artboard, width, height },
-        })),
-      }));
-    },
-  };
-
-  return {
-    store,
-    actions: projectActions,
-  };
-};
