@@ -7,7 +7,7 @@ import type { Project } from "../project/Project.js";
 import { loadProjectFile, serializeProject } from "../project/serialization.js";
 import { useSyncExternalStore } from "react";
 import { subscribeToChanges } from "./projectActions.js";
-import { Renderer } from "../renderer/Renderer.js";
+import { createFile, openFile, readFile, writeFile } from "../utils/file.js";
 
 export const store = createStore(
   combine(
@@ -16,6 +16,7 @@ export const store = createStore(
       project: null as Project | null,
       canvas: null as HTMLCanvasElement | null,
       viewport: null as Viewport | null,
+
       selection: null as Selection | null,
     },
     (set, get) => {
@@ -25,12 +26,8 @@ export const store = createStore(
         writesArePending = true;
         const { project, fileHandle } = get();
         if (!project || !fileHandle) return;
-        const data = new Blob([JSON.stringify(serializeProject(project))], {
-          type: "application/json",
-        });
-        const writable = await fileHandle.createWritable();
-        await writable.write(data);
-        await writable.close();
+        await writeFile(fileHandle, JSON.stringify(serializeProject(project)));
+        writesArePending = false;
       }
 
       function createProject(json?: string) {
@@ -50,53 +47,19 @@ export const store = createStore(
           );
         },
         async newFile() {
-          const fileHandle = await window.showSaveFilePicker({
-            types: [
-              {
-                description: "Comic Layout File",
-                accept: { "application/json": [".json"] },
-              },
-            ],
-            suggestedName: "NewComic.json",
-            startIn: "desktop",
-          });
+          const fileHandle = await createFile("NewComic.json");
           set({ fileHandle });
           const project = createProject();
           return project;
         },
 
         async openFile() {
-          const [fileHandle] = await window.showOpenFilePicker({
-            types: [
-              {
-                description: "Comic Layout File",
-                accept: {
-                  "application/json": [".json"],
-                },
-              },
-            ],
-            multiple: false,
-          });
+          const fileHandle = await openFile();
 
-          const { promise, resolve, reject } = Promise.withResolvers<void>();
-
-          const file = await fileHandle.getFile();
-
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const string = e.target?.result as string;
-            set({ fileHandle });
-            createProject(string);
-            resolve();
-          };
-
-          reader.onerror = (e) => {
-            set({ fileHandle: null });
-            reject(e);
-          };
-          reader.readAsText(file);
-
-          return promise;
+          const file = await readFile(fileHandle);
+          set({ fileHandle });
+          createProject(file);
+          set({ fileHandle: null });
         },
 
         saveProject() {

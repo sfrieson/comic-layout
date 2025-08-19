@@ -27,8 +27,8 @@ function ProjectInspector() {
 function LoadedProjectInspector() {
   const project = useProject();
   const name = project.meta.name;
-  const pageWidth = 1080;
-  const pageHeight = 1080;
+  const pageWidth = project.pages.at(0)?.artboard.width ?? 1080;
+  const pageHeight = project.pages.at(0)?.artboard.height ?? 1080;
 
   return (
     <div className="p-2">
