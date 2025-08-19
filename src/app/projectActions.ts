@@ -6,11 +6,14 @@ const getProject = () => expect(store.getState().project, "Project not found");
 
 const listeners = new Set<(project: Project) => void>();
 
-export function requestRender() {
+function requestRender() {
   const project = getProject();
   project.meta._changes++;
   listeners.forEach((listener) => listener(project));
 }
+
+const uiUpdated = requestRender; // TODO: Only needs to update UI, not the renderer
+const projectUpdated = requestRender;
 
 export function subscribeToChanges(listener: (project: Project) => void) {
   listeners.add(listener);
@@ -20,16 +23,55 @@ export function subscribeToChanges(listener: (project: Project) => void) {
 }
 
 export const setName = (name: string) => {
-  getProject().meta.name = name;
-  requestRender();
+  const { history } = store.getState();
+  const originalName = getProject().meta.name;
+  history.add(
+    history.actionSet(
+      () => {
+        getProject().meta.name = name;
+        uiUpdated();
+      },
+      () => {
+        getProject().meta.name = originalName;
+        uiUpdated();
+      },
+    ),
+  );
 };
 
 export const setPageDimensions = (width: number, height: number) => {
-  getProject().pages.forEach((page) => {
-    page.artboard.width = width;
-    page.artboard.height = height;
-  });
-  requestRender();
+  const { history } = store.getState();
+  const originalDimensions = Object.fromEntries(
+    getProject().pages.map((page) => [
+      page.id,
+      {
+        width: page.artboard.width,
+        height: page.artboard.height,
+      },
+    ]),
+  );
+  history.add(
+    history.actionSet(
+      () => {
+        getProject().pages.forEach((page) => {
+          page.artboard.width = width;
+          page.artboard.height = height;
+        });
+        projectUpdated();
+      },
+      () => {
+        getProject().pages.forEach((page) => {
+          const { width, height } = expect(
+            originalDimensions[page.id],
+            "Original dimensions not found",
+          );
+          page.artboard.width = width;
+          page.artboard.height = height;
+        });
+        projectUpdated();
+      },
+    ),
+  );
 };
 
 export const addPage = () => {

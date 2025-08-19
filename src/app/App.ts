@@ -8,6 +8,7 @@ import { loadProjectFile, serializeProject } from "../project/serialization.js";
 import { useSyncExternalStore } from "react";
 import { subscribeToChanges } from "./projectActions.js";
 import { createFile, openFile, readFile, writeFile } from "../utils/file.js";
+import { createHistory } from "../history/history.js";
 
 export const store = createStore(
   combine(
@@ -16,7 +17,7 @@ export const store = createStore(
       project: null as Project | null,
       canvas: null as HTMLCanvasElement | null,
       viewport: null as Viewport | null,
-
+      history: createHistory(),
       selection: null as Selection | null,
     },
     (set, get) => {

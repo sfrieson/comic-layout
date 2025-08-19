@@ -11,4 +11,12 @@ export function useAppHotkeys() {
     e.preventDefault();
     app.getState().newFile();
   });
+  useHotkeys("meta+z", (e: KeyboardEvent) => {
+    e.preventDefault();
+    app.getState().history.undo();
+  });
+  useHotkeys("meta+shift+z", (e: KeyboardEvent) => {
+    e.preventDefault();
+    app.getState().history.redo();
+  });
 }
