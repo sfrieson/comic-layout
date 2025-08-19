@@ -2,7 +2,7 @@ import { createStore } from "zustand";
 import { combine } from "zustand/middleware";
 
 import { Viewport } from "./Viewport.js";
-import { expect } from "../utils/assert.js";
+import { assert, expect } from "../utils/assert.js";
 import type { Project } from "../project/Project.js";
 import { loadProjectFile, serializeProject } from "../project/serialization.js";
 import { useSyncExternalStore } from "react";
@@ -26,9 +26,12 @@ export const store = createStore(
       async function saveProject() {
         writesArePending = true;
         const { project, fileHandle } = get();
-        if (!project || !fileHandle) return;
-        await writeFile(fileHandle, JSON.stringify(serializeProject(project)));
-        writesArePending = false;
+
+        assert(project, "No project found.");
+        assert(fileHandle, "No file handle found.");
+        const json = JSON.stringify(serializeProject(project));
+        writesArePending = false; // Now the project data is serialized, any changes need to be picked up
+        await writeFile(fileHandle, json);
       }
 
       function createProject(json?: string) {
@@ -55,12 +58,16 @@ export const store = createStore(
         },
 
         async openFile() {
-          const fileHandle = await openFile();
+          try {
+            const fileHandle = await openFile();
 
-          const file = await readFile(fileHandle);
-          set({ fileHandle });
-          createProject(file);
-          set({ fileHandle: null });
+            const file = await readFile(fileHandle);
+            set({ fileHandle });
+            createProject(file);
+          } catch (e) {
+            set({ fileHandle: null });
+            throw e;
+          }
         },
 
         saveProject() {

@@ -26,6 +26,45 @@ export class Viewport {
       this.#setCanvasSize();
     });
     resizeObserver.observe(this.#canvas);
+
+    this.#canvas.addEventListener("mousedown", (e) => {
+      console.log("mousedown", e);
+    });
+    this.#canvas.addEventListener("mouseup", (e) => {
+      console.log("mouseup", e);
+    });
+
+    this.#canvas.addEventListener("mousemove", (e) => {
+      console.log("mousemove", e);
+    });
+
+    this.#canvas.addEventListener("mouseleave", (e) => {
+      console.log("mouseleave", e);
+    });
+
+    this.#canvas.addEventListener("mouseenter", (e) => {
+      console.log("mouseenter", e);
+    });
+
+    this.#canvas.addEventListener("mouseover", (e) => {
+      console.log("mouseover", e);
+    });
+
+    this.#canvas.addEventListener("mouseout", (e) => {
+      console.log("mouseout", e);
+    });
+
+    this.#canvas.addEventListener("mousewheel", (e) => {
+      console.log("mousewheel", e);
+    });
+
+    this.#canvas.addEventListener("wheel", (e) => {
+      console.log("wheel", e);
+    });
+
+    this.#canvas.addEventListener("contextmenu", (e) => {
+      console.log("contextmenu", e);
+    });
   }
 
   #setCanvasSize() {
