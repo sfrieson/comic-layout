@@ -1,11 +1,15 @@
-import { Project } from "../project/Project.js";
+import { Page, Project } from "../project/Project.js";
 import { expect } from "../utils/assert.js";
 
-type UI = {
+interface UI {
   zoom: number;
   pan: { x: number; y: number };
-};
-export class Renderer {
+  canvasColor: string;
+  activePage: string;
+}
+
+/** Manages rendering the screen of the application, which could be multiple pages as well as UI elements. */
+export class ViewportRenderer {
   #canvas: HTMLCanvasElement;
   #ctx: CanvasRenderingContext2D;
 
@@ -14,34 +18,99 @@ export class Renderer {
     this.#ctx = expect(canvas.getContext("2d"), "Canvas context not created");
   }
 
+  #scope(fn: (context: CanvasRenderingContext2D) => void) {
+    this.#ctx.save();
+    fn(this.#ctx);
+    this.#ctx.restore();
+  }
+
   render(project: Project, ui: UI) {
     const context = this.#ctx;
-    context.fillStyle = "#333";
+    context.fillStyle = ui.canvasColor;
     context.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
 
-    const width = this.#canvas.width / devicePixelRatio;
-    const height = this.#canvas.height / devicePixelRatio;
-    const screen = (n: number) => n / devicePixelRatio / ui.zoom;
-    // const focus = 0;
-    context.save();
-    context.translate(width / 2 + ui.pan.x, height / 2 + ui.pan.y);
-    context.scale(ui.zoom, ui.zoom);
+    this.#scope((context) => {
+      context.scale(devicePixelRatio, devicePixelRatio);
+      context.translate(ui.pan.x, ui.pan.y);
+      context.scale(ui.zoom, ui.zoom);
+      const screen = (n: number) => n / devicePixelRatio / ui.zoom;
+      const renderInfo: UIRenderInfo = {
+        screen,
+        context,
+        project,
+        ui,
+      };
 
-    for (const page of project.pages) {
-      const lineWidth = screen(1);
-      context.save();
-      const { width, height } = page;
-      context.translate(-width / 2, -height / 2);
-      context.fillStyle = "#fff";
-      context.fillRect(0, 0, width, height);
-      context.strokeStyle = "#000";
-      context.lineWidth = lineWidth;
-      context.strokeRect(0, 0, width, height);
-      context.restore();
+      let selectedI = -1;
+      for (const [i, page] of project.pages.entries()) {
+        this.#scope((context) => {
+          const { id, width, height } = page;
+          if (id === ui.activePage) {
+            selectedI = i;
+          }
+          context.translate(width * i, 0);
 
-      context.translate(width + lineWidth, 0); // overlapping lines
-    }
-
-    context.restore();
+          // TODO: Mask the area of the page that is not visible in the viewport, (but also support removing the mask)
+          renderPage(renderInfo, page);
+          renderPageUI(renderInfo, page);
+        });
+      }
+      const selectedPage = project.pages[selectedI];
+      if (selectedPage) {
+        this.#scope((context) => {
+          context.translate(selectedPage.width * selectedI, 0);
+          renderSelectedPageUI(renderInfo, selectedPage);
+        });
+      }
+    });
   }
+}
+
+interface RenderInfo {
+  screen: (n: number) => number;
+  context: CanvasRenderingContext2D;
+  project: Project;
+}
+
+interface UIRenderInfo extends RenderInfo {
+  ui: UI;
+}
+
+function renderPage({ context }: RenderInfo, { width, height, color }: Page) {
+  context.fillStyle = color;
+  context.fillRect(0, 0, width, height);
+}
+
+function renderPageUI(
+  { context, screen, ui }: UIRenderInfo,
+  { id, width, height }: Page,
+) {
+  context.strokeStyle = "#000";
+  context.lineWidth = screen(1);
+  context.strokeRect(
+    screen(-0.5),
+    screen(-0.5),
+    width + screen(1),
+    height + screen(1),
+  );
+}
+function renderSelectedPageUI(
+  { context, screen, ui }: UIRenderInfo,
+  { id, width, height }: Page,
+) {
+  context.strokeStyle = "#f00";
+  context.lineWidth = screen(2);
+  context.strokeRect(
+    screen(-1),
+    screen(-1),
+    width + screen(2),
+    height + screen(2),
+  );
+}
+
+export function screenToWorld(pos: { x: number; y: number }, ui: UI) {
+  return {
+    x: (pos.x - ui.pan.x) / ui.zoom,
+    y: (pos.y - ui.pan.y) / ui.zoom,
+  };
 }

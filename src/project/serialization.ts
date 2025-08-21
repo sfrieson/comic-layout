@@ -1,4 +1,8 @@
-import { SerializedNode, serializedProjectSchema } from "./types.js";
+import {
+  SerializedNode,
+  SerializedProject,
+  serializedProjectSchema,
+} from "./types.js";
 import { Project, Node } from "./Project.js";
 
 // const INSTAGRAM_MAX = 1080;
@@ -19,7 +23,9 @@ export function loadProjectFile(json?: string): Project {
   return new Project(parsed);
 }
 
-function migrateProject(parsed: Record<string, unknown>) {
+function migrateProject(
+  parsed: Record<string, unknown> & { meta: { version: number } },
+) {
   switch (parsed.meta.version) {
     case 3:
       parsed = removeArtboards(parsed);
@@ -31,28 +37,38 @@ function migrateProject(parsed: Record<string, unknown>) {
 
 const CURRENT_SERIALIZATION_VERSION = 4;
 
-export function serializeProject(project: Project) {
-  function traverse(
-    node: Node | Node[],
-    nodes: SerializedNode[] = [],
-  ): SerializedNode[] {
-    if (Array.isArray(node)) {
-      return node.flatMap((n) => traverse(n, nodes));
-    }
-    if (node.type === "page") {
-      nodes.push({
-        ...node,
-      });
-    } else {
-      const _exhaustive: never = node;
-      throw new Error(`Unknown node type: ${(_exhaustive as Node).type}`);
-    }
-    return nodes;
+function traverse(node: Node | Node[], fn: (node: Node) => void) {
+  if (Array.isArray(node)) {
+    node.forEach((n) => traverse(n, fn));
+    return;
   }
+
+  fn(node);
+
+  switch (node.type) {
+    case "page":
+      break;
+    default:
+      throw new Error(`Unknown node type: ${node.type}`);
+  }
+}
+
+export function serializeProject(project: Project): SerializedProject {
+  const nodes: SerializedNode[] = [];
+  traverse(project.pages, (node) => {
+    switch (node.type) {
+      case "page":
+        nodes.push({
+          ...node,
+        });
+        break;
+      default:
+        throw new Error(`Unknown node type: ${node.type}`);
+    }
+  });
   return {
-    version: CURRENT_SERIALIZATION_VERSION,
     pages: project.pages.map((page) => page.id),
-    nodes: traverse(project.pages),
+    nodes,
     meta: {
       ...project.meta,
       updatedAt: new Date().toISOString(),
@@ -61,7 +77,7 @@ export function serializeProject(project: Project) {
   };
 }
 
-function removeArtboards(project: unknown) {
+function removeArtboards<T = unknown>(project: T) {
   const oldProject = project as {
     nodes: Array<
       | { type: "artboard"; id: string; width: number; height: number }

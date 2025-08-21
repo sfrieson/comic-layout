@@ -22,6 +22,8 @@ export const store = createStore(
       ui: {
         zoom: 1,
         pan: { x: 0, y: 0 },
+        canvasColor: "#ccc",
+        activePage: "",
       },
     },
     (set, get) => {
@@ -99,6 +101,9 @@ export const store = createStore(
         },
         setPan: (pan: { x: number; y: number }) => {
           setUI({ pan });
+        },
+        setActivePage: (activePage: string) => {
+          setUI({ activePage });
         },
       };
     },

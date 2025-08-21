@@ -9,23 +9,25 @@ export class Page {
   name: string;
   width: number;
   height: number;
+  color: string;
 
   constructor(opt: {
     id: string;
-    name: string;
+    name?: string;
     width: number;
     height: number;
+    color?: string;
   }) {
     this.id = opt.id;
-    this.name = opt.name;
+    this.name = opt.name ?? "Page";
     this.width = opt.width;
     this.height = opt.height;
+    this.color = opt.color ?? "#fff";
   }
 
   static create(opt: { width: number; height: number }) {
     return new Page({
       id: uuid(),
-      name: "New Page",
       width: opt.width,
       height: opt.height,
     });
