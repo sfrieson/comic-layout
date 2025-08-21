@@ -98,7 +98,7 @@ function renderSelectedPageUI(
   { context, screen, ui }: UIRenderInfo,
   { id, width, height }: Page,
 ) {
-  context.strokeStyle = "#f00";
+  context.strokeStyle = "#0ff";
   context.lineWidth = screen(2);
   context.strokeRect(
     screen(-1),
