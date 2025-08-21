@@ -1,5 +1,6 @@
 import { Page, Project } from "../project/Project.js";
 import { expect } from "../utils/assert.js";
+import { vec2Div, vec2Sub } from "../utils/vec2.js";
 
 interface UI {
   zoom: number;
@@ -108,9 +109,9 @@ function renderSelectedPageUI(
   );
 }
 
-export function screenToWorld(pos: { x: number; y: number }, ui: UI) {
-  return {
-    x: (pos.x - ui.pan.x) / ui.zoom,
-    y: (pos.y - ui.pan.y) / ui.zoom,
-  };
+export function screenToWorld(
+  pos: { x: number; y: number },
+  ui: { pan: { x: number; y: number }; zoom: number },
+) {
+  return vec2Div(vec2Sub(pos, ui.pan), ui.zoom);
 }

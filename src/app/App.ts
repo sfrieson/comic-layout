@@ -63,17 +63,18 @@ export const store = createStore(
         async newFile() {
           const fileHandle = await createFile("NewComic.json");
           set({ fileHandle });
-          const project = createProject();
-          return project;
+          createProject();
+          return fileHandle;
         },
 
-        async openFile() {
+        async openFile(fileHandle?: FileSystemFileHandle) {
           try {
-            const fileHandle = await openFile();
+            fileHandle ??= await openFile();
 
             const file = await readFile(fileHandle);
             set({ fileHandle });
             createProject(file);
+            return fileHandle;
           } catch (e) {
             set({ fileHandle: null });
             throw e;
@@ -97,11 +98,12 @@ export const store = createStore(
           }, 10_000);
           window.addEventListener("beforeunload", saveNow);
         },
-        setZoom: (zoom: number) => {
-          setUI({ zoom: Math.min(Math.max(0.01, zoom), 32) });
+        setZoom: (zoom: number, pan: { x: number; y: number }) => {
+          if (zoom < 0.01 || zoom > 32) return;
+          setUI({ zoom: Math.min(Math.max(0.01, zoom), 32), pan });
         },
         setPan: (pan: { x: number; y: number }) => {
-          setUI({ pan });
+          setUI({ pan: { x: Math.round(pan.x), y: Math.round(pan.y) } });
         },
         setActivePage: (activePage: string) => {
           setUI({ activePage });

@@ -1,6 +1,7 @@
 import { useStore } from "zustand";
 import { store, useProject } from "../app/App.js";
 import { addPage, setName, setPageDimensions } from "../app/projectActions.js";
+import { useRecentFiles } from "../app/hooks.js";
 
 export function Inspector() {
   const selection = useStore(store, (s) => s.selection);
@@ -10,18 +11,47 @@ export function Inspector() {
 
 function ProjectInspector() {
   const project = useStore(store, (s) => s.project);
-  const newFile = useStore(store, (s) => s.newFile);
-  const openFile = useStore(store, (s) => s.openFile);
 
-  if (!project)
-    return (
-      <div>
-        <button onClick={() => newFile()}>New Project</button>
-        <button onClick={() => openFile()}>Open Project</button>
-      </div>
-    );
+  if (!project) return <IdleInspector />;
 
   return <LoadedProjectInspector />;
+}
+
+function IdleInspector() {
+  const { recentFiles, addRecentFile } = useRecentFiles();
+  const newFile = useStore(store, (s) => s.newFile);
+  const openFile = useStore(store, (s) => s.openFile);
+  console.log({ recentFiles });
+
+  return (
+    <div>
+      <button
+        onClick={async () => {
+          const handle = await newFile();
+          console.log({ savedHande: handle });
+          addRecentFile(handle);
+        }}
+      >
+        New Project
+      </button>
+      <button
+        onClick={async () => {
+          const handle = await openFile();
+          console.log({ savedHande: handle });
+          addRecentFile(handle);
+        }}
+      >
+        Open Project
+      </button>
+      <div>
+        {recentFiles?.map((file) => (
+          <button key={file.name} onClick={() => openFile(file)}>
+            {file.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function LoadedProjectInspector() {

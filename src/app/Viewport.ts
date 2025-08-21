@@ -1,5 +1,6 @@
 import { screenToWorld, ViewportRenderer } from "../renderer/Renderer.js";
 import { assert, expect } from "../utils/assert.js";
+import { eventVec2, vec2Add, vec2mult, vec2Sub } from "../utils/vec2.js";
 import { store } from "./App.js";
 
 export class Viewport {
@@ -79,7 +80,19 @@ class Interactvity {
       if (e.ctrlKey) {
         // `ctrlKey` is set by the browser and doesn't need the key to be pressed
         e.preventDefault(); // don't zoom the browser
-        store.getState().setZoom(store.getState().ui.zoom + e.deltaY * -0.0125);
+        const clientPos = eventVec2(e);
+        const zoomOrigin = screenToWorld(clientPos, store.getState().ui);
+        const currentZoom = store.getState().ui.zoom;
+        const pan = store.getState().ui.pan;
+        const zoomDelta = e.deltaY * -0.0125;
+        const originDelta = vec2Sub(
+          vec2mult(zoomOrigin, currentZoom),
+          vec2mult(zoomOrigin, currentZoom + zoomDelta),
+        );
+
+        store
+          .getState()
+          .setZoom(currentZoom + zoomDelta, vec2Add(pan, originDelta));
       } else {
         store.getState().setPan({
           x: store.getState().ui.pan.x - e.deltaX,

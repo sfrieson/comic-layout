@@ -23,6 +23,7 @@
   "dependencies": {
     "@rexxars/react-split-pane": "^1.0.0",
     "@tailwindcss/vite": "^4.1.12",
+    "idb": "^8.0.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hotkeys-hook": "^5.1.0",
