@@ -27,6 +27,7 @@ export const store = createStore(
       },
     },
     (set, get) => {
+      console.log("setting up store");
       const setUI = (ui: Partial<ReturnType<typeof get>["ui"]>) => {
         set({ ui: { ...get().ui, ...ui } });
       };

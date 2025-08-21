@@ -89,3 +89,7 @@ export function expectSerializedNode<T extends SerializedNode["type"]>(
   assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
   return node as Extract<SerializedNode, { type: T }>;
 }
+
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}
