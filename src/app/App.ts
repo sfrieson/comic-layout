@@ -6,10 +6,9 @@ import { assert, expect } from "../utils/assert.js";
 import type { Project } from "../project/Project.js";
 import { loadProjectFile, serializeProject } from "../project/serialization.js";
 import { useSyncExternalStore } from "react";
-import { subscribeToChanges } from "./projectActions.js";
+import { removePage, subscribeToChanges } from "./projectActions.js";
 import { createFile, openFile, readFile, writeFile } from "../utils/file.js";
 import { createHistory } from "../history/history.js";
-import { insertAtIndex, removeIndex } from "../utils/array.js";
 
 export const store = createStore(
   combine(
@@ -28,17 +27,9 @@ export const store = createStore(
       },
     },
     (set, get) => {
-      console.log("setting up store");
       const requireProject = () => {
         const project = expect(get().project, "No project found.");
         return project;
-      };
-
-      const requirePage = (pageId: string) => {
-        const project = requireProject();
-        const page = expect(project.nodeMap.get(pageId), "Page node not found");
-        assert(page.type === "page", "Node is not a page");
-        return page;
       };
 
       const setUI = (ui: Partial<ReturnType<typeof get>["ui"]>) => {
@@ -47,7 +38,6 @@ export const store = createStore(
       let writesArePending = false;
 
       async function saveProject() {
-        console.log("saving project");
         writesArePending = true;
         const { project, fileHandle } = get();
 
@@ -109,15 +99,12 @@ export const store = createStore(
           writesArePending = true;
           const saveNow = () => {
             clearTimeout(timeout);
-            window.removeEventListener("beforeunload", saveNow);
-
-            saveProject();
-          };
-
-          const timeout = setTimeout(() => {
             writesArePending = false;
             saveProject();
-          }, 10_000);
+            window.removeEventListener("beforeunload", saveNow);
+          };
+
+          const timeout = setTimeout(saveNow, 10_000);
           window.addEventListener("beforeunload", saveNow);
         },
         setZoom: (zoom: number, pan: { x: number; y: number }) => {
@@ -132,60 +119,8 @@ export const store = createStore(
         },
         removePage: (pageId: string) => {
           const { history } = get();
-          const project = requireProject();
-
-          const deletedPage = requirePage(pageId);
-          const deletedPageIndex = expect(
-            project.pages.indexOf(deletedPage),
-            "Page not found in project pages",
-          );
-          history.add(
-            history.actionSet(
-              () => {
-                const project = requireProject();
-                const nodeMap = new Map(project.nodeMap);
-                nodeMap.delete(pageId);
-
-                set({
-                  project: {
-                    ...project,
-
-                    nodeMap,
-                    pages: removeIndex(project.pages, deletedPageIndex),
-                  },
-                  ui: {
-                    ...get().ui,
-                    activePage: "",
-                  },
-                });
-                // not deleting other page nodes.
-                // They'll be around for undo operations
-                // Not sure if they're needed for other connections
-                //  They should be cleaned up in serialization.
-              },
-              () => {
-                const project = requireProject();
-                const nodeMap = new Map(project.nodeMap);
-                nodeMap.set(pageId, deletedPage);
-
-                set({
-                  project: {
-                    ...project,
-                    nodeMap,
-                    pages: insertAtIndex(
-                      project.pages,
-                      deletedPageIndex,
-                      deletedPage,
-                    ),
-                  },
-                  ui: {
-                    ...get().ui,
-                    activePage: pageId,
-                  },
-                });
-              },
-            ),
-          );
+          removePage(pageId);
+          history.a;
         },
       };
     },

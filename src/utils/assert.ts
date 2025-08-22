@@ -5,6 +5,6 @@ export function assert(condition: unknown, message: string): asserts condition {
 }
 
 export function expect<T>(value: T | null | undefined, message: string) {
-  assert(value, message);
+  assert(value != null, message);
   return value;
 }

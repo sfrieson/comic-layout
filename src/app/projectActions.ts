@@ -1,18 +1,27 @@
 import { store } from "./App.js";
-import { expect } from "../utils/assert.js";
+import { assert, expect } from "../utils/assert.js";
 import { Page, Project } from "../project/Project.js";
+import { insertAtIndex, removeIndex } from "../utils/array.js";
 
-const getProject = () => expect(store.getState().project, "Project not found");
+const requireProject = () =>
+  expect(store.getState().project, "Project not found");
+
+const requirePage = (pageId: string) => {
+  const project = requireProject();
+  const page = expect(project.nodeMap.get(pageId), "Page node not found");
+  assert(page.type === "page", "Node is not a page");
+  return page;
+};
 
 const listeners = new Set<(project: Project) => void>();
 
 function requestRender() {
-  const project = getProject();
+  const project = requireProject();
   project.meta._changes++;
   listeners.forEach((listener) => listener(project));
 }
 
-const uiUpdated = requestRender; // TODO: Only needs to update UI, not the renderer
+const uiUpdated = requestRender; // TODO: Only needs to update chrome, not the renderer
 const projectUpdated = requestRender;
 
 export function subscribeToChanges(listener: (project: Project) => void) {
@@ -24,15 +33,15 @@ export function subscribeToChanges(listener: (project: Project) => void) {
 
 export const setName = (name: string) => {
   const { history } = store.getState();
-  const originalName = getProject().meta.name;
+  const originalName = requireProject().meta.name;
   history.add(
     history.actionSet(
       () => {
-        getProject().meta.name = name;
+        requireProject().meta.name = name;
         uiUpdated();
       },
       () => {
-        getProject().meta.name = originalName;
+        requireProject().meta.name = originalName;
         uiUpdated();
       },
     ),
@@ -42,7 +51,7 @@ export const setName = (name: string) => {
 export const setPageDimensions = (width: number, height: number) => {
   const { history } = store.getState();
   const originalDimensions = Object.fromEntries(
-    getProject().pages.map((page) => [
+    requireProject().pages.map((page) => [
       page.id,
       {
         width: page.width,
@@ -53,14 +62,14 @@ export const setPageDimensions = (width: number, height: number) => {
   history.add(
     history.actionSet(
       () => {
-        getProject().pages.forEach((page) => {
+        requireProject().pages.forEach((page) => {
           page.width = width;
           page.height = height;
         });
         projectUpdated();
       },
       () => {
-        getProject().pages.forEach((page) => {
+        requireProject().pages.forEach((page) => {
           const { width, height } = expect(
             originalDimensions[page.id],
             "Original dimensions not found",
@@ -75,6 +84,70 @@ export const setPageDimensions = (width: number, height: number) => {
 };
 
 export const addPage = () => {
-  getProject().pages.push(Page.create({ width: 100, height: 100 }));
-  requestRender();
+  const { history, setActivePage } = store.getState();
+  const existingPage = requireProject().pages.at(0) ?? {
+    width: 1080,
+    height: 1080,
+  };
+  const page = Page.create({
+    width: existingPage.width,
+    height: existingPage.height,
+  });
+
+  history.add(
+    history.actionSet(
+      () => {
+        const project = requireProject();
+        requireProject().pages.push(page);
+        project.nodeMap.set(page.id, page);
+        setActivePage(page.id);
+        projectUpdated();
+      },
+      () => {
+        const project = requireProject();
+        setActivePage("");
+        project.pages.pop();
+        project.nodeMap.delete(page.id);
+        projectUpdated();
+      },
+    ),
+  );
+};
+
+export const removePage = (pageId: string) => {
+  const { history, setActivePage } = store.getState();
+  const project = requireProject();
+
+  const deletedPage = requirePage(pageId);
+  const deletedPageIndex = expect(
+    project.pages.indexOf(deletedPage),
+    "Page not found in project pages",
+  );
+  history.add(
+    history.actionSet(
+      () => {
+        const project = requireProject();
+
+        setActivePage("");
+        project.pages = removeIndex(project.pages, deletedPageIndex);
+        project.nodeMap.delete(pageId);
+        projectUpdated();
+        // not deleting other page nodes.
+        // They'll be around for undo operations
+        // Not sure if they're needed for other connections
+        //  They should be cleaned up in serialization.
+      },
+      () => {
+        const project = requireProject();
+        project.nodeMap.set(pageId, deletedPage);
+        project.pages = insertAtIndex(
+          project.pages,
+          deletedPageIndex,
+          deletedPage,
+        );
+        setActivePage(pageId);
+        projectUpdated();
+      },
+    ),
+  );
 };
