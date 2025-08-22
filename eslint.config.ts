@@ -19,6 +19,7 @@ export default defineConfig([
         "error",
         {
           ignoreRestSiblings: true,
+          argsIgnorePattern: "^_",
         },
       ],
     },

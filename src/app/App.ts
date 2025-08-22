@@ -6,7 +6,7 @@ import { assert, expect } from "../utils/assert.js";
 import type { Project } from "../project/Project.js";
 import { loadProjectFile, serializeProject } from "../project/serialization.js";
 import { useSyncExternalStore } from "react";
-import { removePage, subscribeToChanges } from "./projectActions.js";
+import { subscribeToChanges } from "./projectActions.js";
 import { createFile, openFile, readFile, writeFile } from "../utils/file.js";
 import { createHistory } from "../history/history.js";
 
@@ -27,11 +27,6 @@ export const store = createStore(
       },
     },
     (set, get) => {
-      const requireProject = () => {
-        const project = expect(get().project, "No project found.");
-        return project;
-      };
-
       const setUI = (ui: Partial<ReturnType<typeof get>["ui"]>) => {
         set({ ui: { ...get().ui, ...ui } });
       };
@@ -116,11 +111,6 @@ export const store = createStore(
         },
         setActivePage: (activePage: string) => {
           setUI({ activePage });
-        },
-        removePage: (pageId: string) => {
-          const { history } = get();
-          removePage(pageId);
-          history.a;
         },
       };
     },

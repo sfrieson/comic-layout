@@ -1,6 +1,11 @@
 import { useStore } from "zustand";
 import { store, useProject } from "../app/App.js";
-import { addPage, setName, setPageDimensions } from "../app/projectActions.js";
+import {
+  addPage,
+  removePage,
+  setName,
+  setPageDimensions,
+} from "../app/projectActions.js";
 import { useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
 
@@ -67,6 +72,7 @@ function LoadedProjectInspector() {
         Name
         <input
           type="text"
+          name="projectName"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -77,6 +83,7 @@ function LoadedProjectInspector() {
         <label className="flex gap-2 items-center">
           <span>W:</span>
           <input
+            name="pageWidth"
             className="w-full"
             type="number"
             value={pageWidth}
@@ -89,6 +96,7 @@ function LoadedProjectInspector() {
         <label className="flex gap-2 items-center">
           <span>H:</span>
           <input
+            name="pageHeight"
             className="w-full"
             type="number"
             value={pageHeight}
@@ -111,8 +119,6 @@ function PageInspector() {
     assert(node.type === "page", "Node is not a page");
     return node;
   });
-  const name = page.name;
-  const removePage = useStore(store, (s) => s.removePage);
 
   return (
     <div>

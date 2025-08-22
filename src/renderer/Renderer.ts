@@ -45,7 +45,7 @@ export class ViewportRenderer {
       let selectedI = -1;
       for (const [i, page] of project.pages.entries()) {
         this.#scope((context) => {
-          const { id, width, height } = page;
+          const { id, width } = page;
           if (id === ui.activePage) {
             selectedI = i;
           }
@@ -83,8 +83,8 @@ function renderPage({ context }: RenderInfo, { width, height, color }: Page) {
 }
 
 function renderPageUI(
-  { context, screen, ui }: UIRenderInfo,
-  { id, width, height }: Page,
+  { context, screen }: UIRenderInfo,
+  { width, height }: Page,
 ) {
   context.strokeStyle = "#000";
   context.lineWidth = screen(1);
@@ -96,8 +96,8 @@ function renderPageUI(
   );
 }
 function renderSelectedPageUI(
-  { context, screen, ui }: UIRenderInfo,
-  { id, width, height }: Page,
+  { context, screen }: UIRenderInfo,
+  { width, height }: Page,
 ) {
   context.strokeStyle = "#0ff";
   context.lineWidth = screen(2);

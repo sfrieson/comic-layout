@@ -6,12 +6,11 @@ import { store } from "./App.js";
 export class Viewport {
   #canvas: HTMLCanvasElement;
   #renderer: ViewportRenderer;
-  #interactvity: Interactvity;
 
   constructor(canvas: HTMLCanvasElement) {
     this.#canvas = canvas;
     this.#renderer = new ViewportRenderer(canvas);
-    this.#interactvity = new Interactvity(canvas, store);
+    new Interactvity(canvas, store);
 
     this.#setCanvasSize();
 
@@ -19,7 +18,6 @@ export class Viewport {
 
     store.subscribe((state) => {
       this.#setUIStateListener(state.ui);
-      this.#interactvity.onStateChange(state);
     });
   }
 
@@ -108,7 +106,7 @@ class Interactvity {
     });
   }
 
-  onStateChange({ project, ui }: ReturnType<typeof store.getState>) {
+  onStateChange({ project }: ReturnType<typeof store.getState>) {
     assert(project, "Project not found");
 
     // const view = {
