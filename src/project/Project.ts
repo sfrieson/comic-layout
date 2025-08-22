@@ -1,5 +1,10 @@
-import { assert } from "../utils/assert.js";
-import { SerializedNode, SerializedPage, SerializedProject } from "./types.js";
+import { expectSerializedNode } from "./serialization.js";
+import {
+  SerializedCell,
+  SerializedNode,
+  SerializedPage,
+  SerializedProject,
+} from "./types.js";
 import { v4 as uuid } from "uuid";
 
 type SeralizedNodeMap = Map<string, SerializedNode>;
@@ -10,6 +15,7 @@ export class Page {
   width: number;
   height: number;
   color: string;
+  children: Node[];
 
   constructor(opt: {
     id: string;
@@ -17,21 +23,28 @@ export class Page {
     width: number;
     height: number;
     color?: string;
+    children?: Node[];
   }) {
     this.id = opt.id;
     this.name = opt.name ?? "Page";
     this.width = opt.width;
     this.height = opt.height;
     this.color = opt.color ?? "#fff";
+    this.children = opt.children ?? [];
   }
 
-  static create(opt: { width: number; height: number }) {
+  static create(opt: {
+    width: number;
+    height: number;
+    color?: string;
+    children?: Node[];
+  }) {
     return new Page({
+      ...opt,
       id: uuid(),
-      width: opt.width,
-      height: opt.height,
     });
   }
+
   static fromSerialized(
     project: Project,
     nodeMap: SeralizedNodeMap,
@@ -43,7 +56,43 @@ export class Page {
   }
 }
 
-export type Node = Page;
+export class Cell {
+  type = "cell" as const;
+  id: string;
+  translation: { x: number; y: number };
+  children: Node[];
+
+  constructor(opt: {
+    id: string;
+    translation?: { x: number; y: number };
+    children?: Node[];
+  }) {
+    this.id = opt.id;
+    this.translation = opt.translation ?? { x: 0, y: 0 };
+    this.children = opt.children ?? [];
+  }
+
+  static create(opt: {
+    translation?: { x: number; y: number };
+    children?: Node[];
+  }) {
+    return new Cell({
+      id: uuid(),
+      ...opt,
+    });
+  }
+
+  static fromSerialized(
+    project: Project,
+    nodeMap: SeralizedNodeMap,
+    serialized: SerializedCell,
+  ) {
+    const cell = new Cell(serialized);
+    return cell;
+  }
+}
+
+export type Node = Page | Cell;
 
 export class Project {
   nodeMap: Map<string, Node> = new Map();
@@ -73,19 +122,4 @@ export class Project {
       _changes: 0,
     };
   }
-}
-
-export function assertSerialzedNode<T extends SerializedNode["type"]>(
-  node: SerializedNode | null | undefined,
-  type: T,
-): asserts node is Extract<SerializedNode, { type: T }> {
-  assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
-}
-
-export function expectSerializedNode<T extends SerializedNode["type"]>(
-  node: SerializedNode | null | undefined,
-  type: T,
-) {
-  assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
-  return node as Extract<SerializedNode, { type: T }>;
 }

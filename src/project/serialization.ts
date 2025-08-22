@@ -4,6 +4,7 @@ import {
   serializedProjectSchema,
 } from "./types.js";
 import { Project, Node } from "./Project.js";
+import { assert } from "../utils/assert.js";
 
 // const INSTAGRAM_MAX = 1080;
 
@@ -62,8 +63,15 @@ export function serializeProject(project: Project): SerializedProject {
           ...node,
         });
         break;
-      default:
-        throw new Error(`Unknown node type: ${node.type}`);
+      case "cell":
+        nodes.push({
+          ...node,
+        });
+        break;
+      default: {
+        const _unreachable: never = node;
+        throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
+      }
     }
   });
   return {
@@ -120,4 +128,19 @@ function removeArtboards<T = unknown>(project: T) {
   };
 
   return newProject;
+}
+
+export function assertSerialzedNode<T extends SerializedNode["type"]>(
+  node: SerializedNode | null | undefined,
+  type: T,
+): asserts node is Extract<SerializedNode, { type: T }> {
+  assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
+}
+
+export function expectSerializedNode<T extends SerializedNode["type"]>(
+  node: SerializedNode | null | undefined,
+  type: T,
+) {
+  assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
+  return node as Extract<SerializedNode, { type: T }>;
 }

@@ -2,6 +2,7 @@ import { useStore } from "zustand";
 import { store, useProject } from "../app/App.js";
 import { addPage, setName, setPageDimensions } from "../app/projectActions.js";
 import { useRecentFiles } from "../app/hooks.js";
+import { assert, expect } from "../utils/assert.js";
 
 export function Inspector() {
   const selection = useStore(store, (s) => s.selection);
@@ -11,10 +12,13 @@ export function Inspector() {
 
 function ProjectInspector() {
   const project = useStore(store, (s) => s.project);
+  const ui = useStore(store, (s) => s.ui);
 
   if (!project) return <IdleInspector />;
 
-  return <LoadedProjectInspector />;
+  if (!ui.activePage) return <LoadedProjectInspector />;
+
+  return <PageInspector />;
 }
 
 function IdleInspector() {
@@ -99,6 +103,24 @@ function LoadedProjectInspector() {
       </div>
 
       <button onClick={() => addPage()}>Add Page</button>
+    </div>
+  );
+}
+
+function PageInspector() {
+  const page = useStore(store, (s) => {
+    const activePage = expect(s.ui.activePage, "No active page");
+    const node = expect(s.project?.nodeMap.get(activePage), "No page node");
+    assert(node.type === "page", "Node is not a page");
+    return node;
+  });
+  const name = page.name;
+  const removePage = useStore(store, (s) => s.removePage);
+
+  return (
+    <div>
+      <p>Page Inspector</p>
+      <button onClick={() => removePage(page.id)}>Remove Page</button>
     </div>
   );
 }

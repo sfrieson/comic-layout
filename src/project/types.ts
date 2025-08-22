@@ -10,8 +10,20 @@ export const serializedPageSchema = z.object({
 
 export type SerializedPage = z.infer<typeof serializedPageSchema>;
 
+export const serializedCellSchema = z.object({
+  type: z.literal("cell"),
+  id: z.string(),
+  translation: z.object({
+    x: z.number(),
+    y: z.number(),
+  }),
+});
+
+export type SerializedCell = z.infer<typeof serializedCellSchema>;
+
 export const serializedNodeSchema = z.discriminatedUnion("type", [
   serializedPageSchema,
+  serializedCellSchema,
 ]);
 
 export type SerializedNode = z.infer<typeof serializedNodeSchema>;
