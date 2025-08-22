@@ -1,5 +1,5 @@
 export async function createFile(name: string) {
-  return await window.showSaveFilePicker({
+  const handle = await window.showSaveFilePicker({
     types: [
       {
         description: "Comic Layout File",
@@ -9,6 +9,10 @@ export async function createFile(name: string) {
     suggestedName: name,
     startIn: "desktop",
   });
+
+  await handle.requestPermission({ mode: "readwrite" });
+
+  return handle;
 }
 
 export async function openFile() {
@@ -29,6 +33,11 @@ export async function openFile() {
 
 export async function readFile(fileHandle: FileSystemFileHandle) {
   const { promise, resolve, reject } = Promise.withResolvers<string>();
+
+  const permission = await fileHandle.queryPermission({ mode: "readwrite" });
+  if (permission !== "granted") {
+    await fileHandle.requestPermission({ mode: "readwrite" });
+  }
 
   const file = await fileHandle.getFile();
 

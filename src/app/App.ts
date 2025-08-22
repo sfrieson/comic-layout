@@ -47,11 +47,20 @@ export const store = createStore(
       let writesArePending = false;
 
       async function saveProject() {
+        console.log("saving project");
         writesArePending = true;
         const { project, fileHandle } = get();
 
         assert(project, "No project found.");
         assert(fileHandle, "No file handle found.");
+
+        const permission = await fileHandle.queryPermission({
+          mode: "readwrite",
+        });
+        if (permission !== "granted") {
+          await fileHandle.requestPermission({ mode: "readwrite" });
+        }
+
         const json = JSON.stringify(serializeProject(project));
         writesArePending = false; // Now the project data is serialized, any changes need to be picked up
         await writeFile(fileHandle, json);

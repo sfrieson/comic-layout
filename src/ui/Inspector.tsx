@@ -25,14 +25,12 @@ function IdleInspector() {
   const { recentFiles, addRecentFile } = useRecentFiles();
   const newFile = useStore(store, (s) => s.newFile);
   const openFile = useStore(store, (s) => s.openFile);
-  console.log({ recentFiles });
 
   return (
     <div>
       <button
         onClick={async () => {
           const handle = await newFile();
-          console.log({ savedHande: handle });
           addRecentFile(handle);
         }}
       >
@@ -41,7 +39,6 @@ function IdleInspector() {
       <button
         onClick={async () => {
           const handle = await openFile();
-          console.log({ savedHande: handle });
           addRecentFile(handle);
         }}
       >

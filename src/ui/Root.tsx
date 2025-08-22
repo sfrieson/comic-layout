@@ -15,7 +15,6 @@ export function Root() {
   const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
   useEffect(() => {
     if (!canvasEl) return;
-    console.log("registering canvas", canvasEl);
     store.getState().registerCanvas(canvasEl);
 
     return () => store.getState().unregisterCanvas(canvasEl);
