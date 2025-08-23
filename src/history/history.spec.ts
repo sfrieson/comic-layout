@@ -100,6 +100,41 @@ describe("History", () => {
       history.redo();
       expect(value).toBe(2);
     });
+
+    it("should deduplicate actions with the same key", () => {
+      const history = createHistory();
+      let value = 0;
+
+      const key = "test";
+      history.add(
+        actionSet(
+          () => {
+            value += 1;
+          },
+          () => {
+            value -= 1;
+          },
+          { key },
+        ),
+      );
+      expect(value).toBe(1);
+
+      history.add(
+        actionSet(
+          () => {
+            value += 1;
+          },
+          () => {
+            value -= 1;
+          },
+          { key },
+        ),
+      );
+      expect(value).toBe(2);
+
+      history.undo();
+      expect(value).toBe(0);
+    });
   });
 
   describe("transactions", () => {
@@ -267,6 +302,57 @@ describe("History", () => {
       expect(value).toBe(3);
       history.redo(); // Should do nothing since future actions were cleared
       expect(value).toBe(3);
+    });
+
+    it("should work with complex nested transactions + duplicates", () => {
+      const history = createHistory();
+      let value = 2;
+
+      const mult = (multiplier: number) => {
+        history.add(
+          actionSet(
+            () => {
+              value *= multiplier;
+            },
+            () => {
+              value /= multiplier;
+            },
+            { key: `mult-${multiplier}` },
+          ),
+        );
+      };
+      const add = (addend: number) => {
+        history.add(
+          actionSet(
+            () => {
+              value += addend;
+            },
+            () => {
+              value -= addend;
+            },
+          ),
+        );
+      };
+
+      const pow = (exponent: number) => {
+        return history.transaction(() => {
+          const v = value;
+          for (let i = 1; i < exponent; i++) {
+            mult(v);
+          }
+        });
+      };
+
+      history.transaction(() => {
+        mult(2);
+        mult(2);
+        pow(2);
+        add(3);
+        mult(3);
+      });
+      expect(value).toBe(201);
+      history.undo();
+      expect(value).toBe(2);
     });
   });
 });
