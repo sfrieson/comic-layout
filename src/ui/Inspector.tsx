@@ -1,6 +1,7 @@
 import { useStore } from "zustand";
 import { store, useProject } from "../app/App.js";
 import {
+  addCellToPage,
   addPage,
   removePage,
   setName,
@@ -120,6 +121,7 @@ function PageInspector() {
     assert(node.type === "page", "Node is not a page");
     return node;
   });
+  console.log(page.id);
 
   return (
     <div>
@@ -148,7 +150,7 @@ function PageInspector() {
         </label>
       </div>
 
-      <button>Add cell</button>
+      <button onClick={() => addCellToPage(page.id)}>Add cell</button>
     </div>
   );
 }

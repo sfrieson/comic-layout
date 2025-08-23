@@ -42,9 +42,15 @@ function traverse(node: Node | Node[], fn: (node: Node) => void) {
 
   switch (node.type) {
     case "page":
+      traverse(node.children, fn);
       break;
-    default:
-      throw new Error(`Unknown node type: ${node.type}`);
+    case "cell":
+      traverse(node.children, fn);
+      break;
+    default: {
+      const _unreachable: never = node;
+      throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
+    }
   }
 }
 
@@ -52,14 +58,17 @@ export function serializeProject(project: Project): SerializedProject {
   const nodes: SerializedNode[] = [];
   traverse(project.pages, (node) => {
     switch (node.type) {
-      case "page":
+      case "page": {
         nodes.push({
           ...node,
+          children: node.children.map((child) => child.id),
         });
         break;
+      }
       case "cell":
         nodes.push({
           ...node,
+          children: node.children.map((child) => child.id),
         });
         break;
       default: {
@@ -90,6 +99,6 @@ export function expectSerializedNode<T extends SerializedNode["type"]>(
   node: SerializedNode | null | undefined,
   type: T,
 ) {
-  assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
+  assertSerialzedNode(node, type);
   return node as Extract<SerializedNode, { type: T }>;
 }

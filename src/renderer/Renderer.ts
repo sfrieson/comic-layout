@@ -1,4 +1,4 @@
-import { Page, Project } from "../project/Project.js";
+import { Cell, Page, Project } from "../project/Project.js";
 import { expect } from "../utils/assert.js";
 import { vec2Div, vec2Sub } from "../utils/vec2.js";
 
@@ -77,13 +77,22 @@ interface UIRenderInfo extends RenderInfo {
   ui: UI;
 }
 
-function renderPage({ context }: RenderInfo, { width, height, fills }: Page) {
+function renderPage(
+  renderInfo: RenderInfo,
+  { width, height, fills, children }: Page,
+) {
+  const { context } = renderInfo;
   for (const fill of fills) {
     switch (fill.type) {
       case "color":
         context.fillStyle = fill.value;
         context.fillRect(0, 0, width, height);
         break;
+    }
+  }
+  for (const child of children) {
+    if (child.type === "cell") {
+      renderCell(renderInfo, child);
     }
   }
 }
@@ -113,6 +122,28 @@ function renderSelectedPageUI(
     width + screen(2),
     height + screen(2),
   );
+}
+
+function renderCell(
+  { context }: RenderInfo,
+  { translation, path, fills }: Cell,
+) {
+  const path2d = new Path2D();
+  path2d.moveTo(path.points[0].x, path.points[0].y);
+  for (const point of path.points) {
+    path2d.lineTo(point.x, point.y);
+  }
+  context.save();
+  context.translate(translation.x, translation.y);
+  for (const fill of fills) {
+    switch (fill.type) {
+      case "color":
+        context.fillStyle = fill.value;
+        context.fill(path2d);
+        break;
+    }
+  }
+  context.restore();
 }
 
 export function screenToWorld(

@@ -1,7 +1,7 @@
 import { store } from "./App.js";
 import { assert, expect } from "../utils/assert.js";
-import { Page, Project } from "../project/Project.js";
-import { insertAtIndex, removeIndex } from "../utils/array.js";
+import { Cell, Page, Project } from "../project/Project.js";
+import { insertAtIndex } from "../utils/array.js";
 
 const requireProject = () =>
   expect(store.getState().project, "Project not found");
@@ -131,16 +131,14 @@ export const addPage = () => {
     history.actionSet(
       () => {
         const project = requireProject();
-        requireProject().pages.push(page);
-        project.nodeMap.set(page.id, page);
+        project.addPage(page);
         setActivePage(page.id);
         projectUpdated();
       },
       () => {
         const project = requireProject();
         setActivePage("");
-        project.pages.pop();
-        project.nodeMap.delete(page.id);
+        project.removePage(page);
         projectUpdated();
       },
     ),
@@ -162,13 +160,8 @@ export const removePage = (pageId: string) => {
         const project = requireProject();
 
         setActivePage("");
-        project.pages = removeIndex(project.pages, deletedPageIndex);
-        project.nodeMap.delete(pageId);
+        project.removePage(deletedPage);
         projectUpdated();
-        // not deleting other page nodes.
-        // They'll be around for undo operations
-        // Not sure if they're needed for other connections
-        //  They should be cleaned up in serialization.
       },
       () => {
         const project = requireProject();
@@ -184,3 +177,24 @@ export const removePage = (pageId: string) => {
     ),
   );
 };
+
+export function addCellToPage(pageId: string) {
+  const { history } = store.getState();
+  const project = requireProject();
+  const page = requirePage(pageId);
+  const cell = Cell.create({});
+  console.log(page.id);
+
+  history.add(
+    history.actionSet(
+      () => {
+        project.addCell(page, cell);
+        projectUpdated();
+      },
+      () => {
+        project.removeCell(page, cell);
+        projectUpdated();
+      },
+    ),
+  );
+}
