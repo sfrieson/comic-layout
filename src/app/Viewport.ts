@@ -74,30 +74,34 @@ class Interactvity {
   }
 
   #setCanvasListeners() {
-    this.#canvas.addEventListener("wheel", (e) => {
-      if (e.ctrlKey) {
-        // `ctrlKey` is set by the browser and doesn't need the key to be pressed
-        e.preventDefault(); // don't zoom the browser
-        const clientPos = eventVec2(e);
-        const zoomOrigin = screenToWorld(clientPos, store.getState().ui);
-        const currentZoom = store.getState().ui.zoom;
-        const pan = store.getState().ui.pan;
-        const zoomDelta = e.deltaY * -0.0125;
-        const originDelta = vec2Sub(
-          vec2mult(zoomOrigin, currentZoom),
-          vec2mult(zoomOrigin, currentZoom + zoomDelta),
-        );
+    this.#canvas.addEventListener(
+      "wheel",
+      (e) => {
+        if (e.ctrlKey) {
+          // `ctrlKey` is set by the browser and doesn't need the key to be pressed
+          e.preventDefault(); // don't zoom the browser
+          const clientPos = eventVec2(e);
+          const zoomOrigin = screenToWorld(clientPos, store.getState().ui);
+          const currentZoom = store.getState().ui.zoom;
+          const pan = store.getState().ui.pan;
+          const zoomDelta = e.deltaY * -0.0125;
+          const originDelta = vec2Sub(
+            vec2mult(zoomOrigin, currentZoom),
+            vec2mult(zoomOrigin, currentZoom + zoomDelta),
+          );
 
-        store
-          .getState()
-          .setZoom(currentZoom + zoomDelta, vec2Add(pan, originDelta));
-      } else {
-        store.getState().setPan({
-          x: store.getState().ui.pan.x - e.deltaX,
-          y: store.getState().ui.pan.y - e.deltaY,
-        });
-      }
-    });
+          store
+            .getState()
+            .setZoom(currentZoom + zoomDelta, vec2Add(pan, originDelta));
+        } else {
+          store.getState().setPan({
+            x: store.getState().ui.pan.x - e.deltaX,
+            y: store.getState().ui.pan.y - e.deltaY,
+          });
+        }
+      },
+      { passive: false },
+    );
 
     this.#canvas.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;

@@ -5,6 +5,7 @@ import {
   removePage,
   setName,
   setPageDimensions,
+  setPageFillColor,
 } from "../app/projectActions.js";
 import { useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
@@ -124,6 +125,30 @@ function PageInspector() {
     <div>
       <p>Page Inspector</p>
       <button onClick={() => removePage(page.id)}>Remove Page</button>
+      <div>
+        <label>
+          Background Fill
+          <div>
+            {page.fills.map((fill, i) => (
+              <div key={`fill-${i}-${fill.type}`}>
+                {fill.type}
+                <input
+                  type="color"
+                  className="w-full h-16"
+                  name="backgroundColor"
+                  value={fill.value}
+                  onChange={(e) => {
+                    console.log(e.target.value);
+                    setPageFillColor(page.id, i, e.target.value);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </label>
+      </div>
+
+      <button>Add cell</button>
     </div>
   );
 }

@@ -7,6 +7,14 @@ import {
 } from "./types.js";
 import { v4 as uuid } from "uuid";
 
+interface ColorFill {
+  type: "color";
+  value: string;
+  opacity: number;
+}
+
+type Fill = ColorFill;
+
 type SeralizedNodeMap = Map<string, SerializedNode>;
 export class Page {
   type = "page" as const;
@@ -14,7 +22,7 @@ export class Page {
   name: string;
   width: number;
   height: number;
-  color: string;
+  fills: Fill[];
   children: Node[];
 
   constructor(opt: {
@@ -22,21 +30,21 @@ export class Page {
     name?: string;
     width: number;
     height: number;
-    color?: string;
+    fills?: Fill[];
     children?: Node[];
   }) {
     this.id = opt.id;
     this.name = opt.name ?? "Page";
     this.width = opt.width;
     this.height = opt.height;
-    this.color = opt.color ?? "#fff";
+    this.fills = opt.fills ?? [{ type: "color", value: "#ffffff", opacity: 1 }];
     this.children = opt.children ?? [];
   }
 
   static create(opt: {
     width: number;
     height: number;
-    color?: string;
+    fills?: Fill[];
     children?: Node[];
   }) {
     return new Page({

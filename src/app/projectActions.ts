@@ -83,6 +83,39 @@ export const setPageDimensions = (width: number, height: number) => {
   );
 };
 
+export const setPageFillColor = (
+  pageId: string,
+  fillIndex: number,
+  color: string,
+) => {
+  const { history } = store.getState();
+  const originalColor = expect(
+    requirePage(pageId).fills.at(fillIndex),
+    "Fill not found",
+  ).value;
+  history.add(
+    history.actionSet(
+      () => {
+        expect(
+          requirePage(pageId).fills.at(fillIndex),
+          "Fill not found",
+        ).value = color;
+        projectUpdated();
+      },
+      () => {
+        expect(
+          requirePage(pageId).fills.at(fillIndex),
+          "Fill not found",
+        ).value = originalColor;
+        projectUpdated();
+      },
+      {
+        key: `page-${pageId}-fill-${fillIndex}`,
+      },
+    ),
+  );
+};
+
 export const addPage = () => {
   const { history, setActivePage } = store.getState();
   const existingPage = requireProject().pages.at(0) ?? {

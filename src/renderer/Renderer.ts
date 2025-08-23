@@ -77,9 +77,15 @@ interface UIRenderInfo extends RenderInfo {
   ui: UI;
 }
 
-function renderPage({ context }: RenderInfo, { width, height, color }: Page) {
-  context.fillStyle = color;
-  context.fillRect(0, 0, width, height);
+function renderPage({ context }: RenderInfo, { width, height, fills }: Page) {
+  for (const fill of fills) {
+    switch (fill.type) {
+      case "color":
+        context.fillStyle = fill.value;
+        context.fillRect(0, 0, width, height);
+        break;
+    }
+  }
 }
 
 function renderPageUI(
