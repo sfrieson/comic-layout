@@ -10,11 +10,24 @@ import {
 } from "../app/projectActions.js";
 import { useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
+import { Cell } from "../project/Project.js";
 
 export function Inspector() {
   const selection = useStore(store, (s) => s.ui.selection);
   if (!selection.size) return <ProjectInspector />;
+  if (selection.size > 1) {
+    return <div>Multi-Selection Inspector</div>;
+  }
+
+  const node = selection.values().next().value!;
+  if (node.type === "cell") {
+    return <CellInspector node={node} />;
+  }
   return <div>Selection Inspector</div>;
+}
+
+function CellInspector({ node }: { node: Cell }) {
+  return <div>Cell Inspector</div>;
 }
 
 function ProjectInspector() {

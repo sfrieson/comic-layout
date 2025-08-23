@@ -1,7 +1,13 @@
-import { Node } from "../project/Project.js";
-import { screenToWorld, ViewportRenderer } from "../renderer/Renderer.js";
+import { Node, Project } from "../project/Project.js";
+import { RenderInfo, renderPage } from "../renderer/Renderer.js";
 import { assert, expect } from "../utils/assert.js";
-import { eventVec2, vec2Add, vec2mult, vec2Sub } from "../utils/vec2.js";
+import {
+  eventVec2,
+  vec2Add,
+  vec2Div,
+  vec2mult,
+  vec2Sub,
+} from "../utils/vec2.js";
 import { store } from "./App.js";
 
 export class Viewport {
@@ -26,7 +32,7 @@ export class Viewport {
   #setUIStateListener(ui: unknown) {
     if (ui === this.#previousUIState) return;
     this.#previousUIState = ui;
-    this.render();
+    this.#queueRender();
   }
 
   #setCanvasListeners() {
@@ -43,24 +49,100 @@ export class Viewport {
     this.#canvas.width = width * devicePixelRatio;
     this.#canvas.height = height * devicePixelRatio;
 
-    this.#renderer.render(
-      expect(store.getState().project, "Project not found"),
-      store.getState().ui,
-    );
+    this.#render(); // render immediately because changing canvas sizes clears the canvas
   }
 
   #renderQueued = false;
-  render() {
+  #queueRender() {
     if (this.#renderQueued) return;
     this.#renderQueued = true;
     requestAnimationFrame(() => {
-      this.#renderQueued = false;
-      this.#renderer.render(
-        expect(store.getState().project, "Project not found"),
-        store.getState().ui,
-      );
+      this.#render();
     });
   }
+
+  #render() {
+    const { ui } = store.getState();
+    const screen = (n: number) => n / devicePixelRatio / ui.zoom;
+    this.#renderQueued = false;
+    const renderQueue: Array<() => void> = [];
+    const uiInfo = {
+      screen,
+      context: this.#renderer.ctx,
+    };
+    this.#renderer.render(
+      expect(store.getState().project, "Project not found"),
+      {
+        ...ui,
+        onRendered(node, renderInfo) {
+          // decide if clickable
+          // decide if it needs UI
+          switch (node.type) {
+            case "page":
+              if (ui.activePage === node.id) {
+                renderQueue.push(() => {
+                  renderSelectedPageUI(uiInfo, {
+                    width: node.width,
+                    height: node.height,
+                    transform: renderInfo.transform,
+                  });
+                });
+              }
+              break;
+            case "cell":
+              if (ui.selection.has(node)) {
+                renderQueue.push(() => {
+                  renderSelectedCellUI(uiInfo, renderInfo);
+                });
+              }
+          }
+        },
+      },
+    );
+
+    for (const cb of renderQueue) {
+      cb();
+    }
+  }
+}
+
+function renderSelectedPageUI(
+  {
+    context,
+    screen,
+  }: { context: CanvasRenderingContext2D; screen: (n: number) => number },
+  {
+    width,
+    height,
+    transform,
+  }: { width: number; height: number; transform: DOMMatrix },
+) {
+  context.save();
+  context.setTransform(transform);
+  context.strokeStyle = "#0ff";
+  context.lineWidth = screen(2);
+  context.strokeRect(
+    screen(-1),
+    screen(-1),
+    width + screen(2),
+    height + screen(2),
+  );
+  context.restore();
+}
+
+function renderSelectedCellUI(
+  {
+    context,
+    screen,
+  }: { context: CanvasRenderingContext2D; screen: (n: number) => number },
+  { transform, path }: { transform: DOMMatrix; path: Path2D },
+) {
+  context.save();
+  context.setTransform(transform);
+  context.strokeStyle = "#00ffff";
+  context.lineWidth = screen(2);
+  context.stroke(path);
+  context.restore();
 }
 
 class Interactvity {
@@ -206,4 +288,68 @@ function aabbFromPoints(
     contains: (p: { x: number; y: number }) =>
       p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY,
   };
+}
+
+interface UI {
+  zoom: number;
+  pan: { x: number; y: number };
+  canvasColor: string;
+  onRendered: (node: Node, renderInfo: any) => void;
+}
+
+/** Manages rendering the screen of the application, which could be multiple pages as well as UI elements. */
+export class ViewportRenderer {
+  #canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.#canvas = canvas;
+    this.ctx = expect(canvas.getContext("2d"), "Canvas context not created");
+  }
+
+  #scope(fn: (context: CanvasRenderingContext2D) => void) {
+    this.ctx.save();
+    fn(this.ctx);
+    this.ctx.restore();
+  }
+
+  render(project: Project, ui: UI) {
+    const context = this.ctx;
+    context.fillStyle = ui.canvasColor;
+    context.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
+
+    const uiRenders = [] as (() => void)[];
+    this.#scope((context) => {
+      context.scale(devicePixelRatio, devicePixelRatio);
+      context.translate(ui.pan.x, ui.pan.y);
+      context.scale(ui.zoom, ui.zoom);
+      const screen = (n: number) => n / devicePixelRatio / ui.zoom;
+      const renderInfo: RenderInfo = {
+        screen,
+        context,
+        project,
+        onRendered: ui.onRendered,
+      };
+
+      for (const [i, page] of project.pages.entries()) {
+        this.#scope((context) => {
+          const { width } = page;
+          context.translate(width * i, 0);
+
+          // TODO: Mask the area of the page that is not visible in the viewport, (but also support removing the mask)
+          renderPage(renderInfo, page);
+        });
+      }
+      for (const uiRender of uiRenders) {
+        uiRender();
+      }
+    });
+  }
+}
+
+function screenToWorld(
+  pos: { x: number; y: number },
+  ui: { pan: { x: number; y: number }; zoom: number },
+) {
+  return vec2Div(vec2Sub(pos, ui.pan), ui.zoom);
 }
