@@ -183,7 +183,6 @@ export function addCellToPage(pageId: string) {
   const project = requireProject();
   const page = requirePage(pageId);
   const cell = Cell.create({});
-  console.log(page.id);
 
   history.add(
     history.actionSet(

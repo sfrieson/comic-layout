@@ -8,7 +8,7 @@ export interface ActionSet {
   type: "action";
 }
 
-interface DuplicateActions {
+export interface DuplicateActions {
   type: "duplicates";
   key: string;
   actions: ActionSet[];
@@ -33,10 +33,10 @@ function createTransactionSet(
     actions,
   };
 }
-type Transaction = {
+export interface Transaction {
   type: "transaction";
   actions: Array<ActionSet | DuplicateActions | Transaction>;
-};
+}
 
 type Action = ActionSet | DuplicateActions | Transaction;
 

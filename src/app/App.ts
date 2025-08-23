@@ -3,7 +3,7 @@ import { combine } from "zustand/middleware";
 
 import { Viewport } from "./Viewport.js";
 import { assert, expect } from "../utils/assert.js";
-import type { Project } from "../project/Project.js";
+import type { Node, Project } from "../project/Project.js";
 import { loadProjectFile, serializeProject } from "../project/serialization.js";
 import { useSyncExternalStore } from "react";
 import { subscribeToChanges } from "./projectActions.js";
@@ -18,12 +18,13 @@ export const store = createStore(
       canvas: null as HTMLCanvasElement | null,
       viewport: null as Viewport | null,
       history: createHistory(),
-      selection: null as Selection | null,
+      selection: Set<Node>,
       ui: {
         zoom: 1,
         pan: { x: 0, y: 0 },
         canvasColor: "#ccc",
         activePage: "",
+        selection: new Set<Node>(),
       },
     },
     (set, get) => {
@@ -110,7 +111,10 @@ export const store = createStore(
           setUI({ pan: { x: Math.round(pan.x), y: Math.round(pan.y) } });
         },
         setActivePage: (activePage: string) => {
-          setUI({ activePage });
+          setUI({ activePage, selection: new Set() });
+        },
+        setSelectedNodes: (selectedNodes: Node[]) => {
+          setUI({ selection: new Set(selectedNodes) });
         },
       };
     },

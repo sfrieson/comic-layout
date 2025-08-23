@@ -12,8 +12,8 @@ import { useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
 
 export function Inspector() {
-  const selection = useStore(store, (s) => s.selection);
-  if (!selection) return <ProjectInspector />;
+  const selection = useStore(store, (s) => s.ui.selection);
+  if (!selection.size) return <ProjectInspector />;
   return <div>Selection Inspector</div>;
 }
 
@@ -121,7 +121,6 @@ function PageInspector() {
     assert(node.type === "page", "Node is not a page");
     return node;
   });
-  console.log(page.id);
 
   return (
     <div>
@@ -140,7 +139,6 @@ function PageInspector() {
                   name="backgroundColor"
                   value={fill.value}
                   onChange={(e) => {
-                    console.log(e.target.value);
                     setPageFillColor(page.id, i, e.target.value);
                   }}
                 />

@@ -1,3 +1,4 @@
+import { Node } from "../project/Project.js";
 import { screenToWorld, ViewportRenderer } from "../renderer/Renderer.js";
 import { assert, expect } from "../utils/assert.js";
 import { eventVec2, vec2Add, vec2mult, vec2Sub } from "../utils/vec2.js";
@@ -163,5 +164,46 @@ class Interactvity {
     }
 
     // TODO: selection is in the active page. Select from elements in the active page.
+    console.log("click on active page");
+    let clicked = false;
+    const pageTranslation = project.pages.indexOf(found);
+    found.children.forEach((child) => {
+      const bb = nodeToBB(child, { x: pageTranslation * found.width, y: 0 });
+      if (!bb) return;
+
+      if (bb.contains(worldPos)) {
+        clicked = true;
+        store.getState().setSelectedNodes([child]);
+        return;
+      }
+    });
+    if (!clicked) {
+      store.getState().setSelectedNodes([]);
+    }
   }
+}
+
+function nodeToBB(node: Node, offset: { x: number; y: number }) {
+  if (node.type === "cell") {
+    return aabbFromPoints(node.path.points, offset);
+  }
+  return null;
+}
+
+function aabbFromPoints(
+  points: { x: number; y: number }[],
+  offset: { x: number; y: number },
+) {
+  const minX = Math.min(...points.map((p) => p.x)) + offset.x;
+  const minY = Math.min(...points.map((p) => p.y)) + offset.y;
+  const maxX = Math.max(...points.map((p) => p.x)) + offset.x;
+  const maxY = Math.max(...points.map((p) => p.y)) + offset.y;
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+    contains: (p: { x: number; y: number }) =>
+      p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY,
+  };
 }
