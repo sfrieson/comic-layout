@@ -1,3 +1,5 @@
+import React from "react";
+import ReactDOM from "react-dom";
 import { createStore } from "zustand";
 import { combine } from "zustand/middleware";
 
@@ -15,7 +17,6 @@ export const store = createStore(
     {
       fileHandle: null as FileSystemFileHandle | null,
       project: null as Project | null,
-      canvas: null as HTMLCanvasElement | null,
       viewport: null as Viewport | null,
       history: createHistory(),
       selection: Set<Node>,
@@ -57,16 +58,13 @@ export const store = createStore(
       }
 
       return {
-        registerCanvas: (canvas: HTMLCanvasElement) => {
+        registerRoot: (root: HTMLElement) => {
           set({
-            canvas,
-            viewport: new Viewport(canvas),
+            viewport: new Viewport(root),
           });
         },
-        unregisterCanvas: (canvas: HTMLCanvasElement) => {
-          set((state) =>
-            state.canvas === canvas ? { canvas: null, viewport: null } : state,
-          );
+        unregisterRoot: (root: HTMLElement) => {
+          set({ viewport: null });
         },
         async newFile() {
           const fileHandle = await createFile("NewComic.json");

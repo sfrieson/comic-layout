@@ -12,13 +12,14 @@ export function Root() {
   const viewport = useStore(store, (state) => state.viewport);
   const saveProject = useStore(store, (state) => state.saveProject);
   useAppHotkeys();
-  const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
+  const [viewportContainer, setViewportContainer] =
+    useState<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (!canvasEl) return;
-    store.getState().registerCanvas(canvasEl);
+    if (!viewportContainer) return;
+    store.getState().registerRoot(viewportContainer);
 
-    return () => store.getState().unregisterCanvas(canvasEl);
-  }, [canvasEl]);
+    return () => store.getState().unregisterRoot(viewportContainer);
+  }, [viewportContainer]);
 
   const onProjectStateChange = useCallback(() => {
     viewport?.render();
@@ -39,7 +40,11 @@ export function Root() {
       primary="second"
     >
       {project ? (
-        <canvas ref={setCanvasEl} style={{ width: "100%", height: "100%" }} />
+        <div
+          ref={setViewportContainer}
+          id="viewport-container"
+          className="w-full h-full relative"
+        />
       ) : (
         <h1>Comic Layout!!!</h1>
       )}

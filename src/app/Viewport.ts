@@ -1,23 +1,35 @@
-import { Node, Project } from "../project/Project.js";
+import { Cell, Page, Project } from "../project/Project.js";
 import { RenderInfo, renderPage } from "../renderer/Renderer.js";
 import { assert, expect } from "../utils/assert.js";
-import {
-  eventVec2,
-  vec2Add,
-  vec2Div,
-  vec2mult,
-  vec2Sub,
-} from "../utils/vec2.js";
+import { eventVec2, vec2Add, vec2mult, vec2Sub } from "../utils/vec2.js";
 import { store } from "./App.js";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { RootSVG, Data as UIData } from "../ui/editing/ViewportRoot.js";
+import { ExtractState } from "zustand";
+import { nodeToBB, screenToWorld } from "../utils/viewportUtils.js";
 
 export class Viewport {
-  #canvas: HTMLCanvasElement;
+  #root: HTMLElement;
   #renderer: ViewportRenderer;
+  #canvas: HTMLCanvasElement;
+  #svgContainer: HTMLDivElement;
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.#canvas = canvas;
-    this.#renderer = new ViewportRenderer(canvas);
-    new Interactvity(canvas, store);
+  constructor(root: HTMLElement) {
+    this.#root = root;
+    this.#canvas = document.createElement("canvas");
+    this.#canvas.classList.add("w-full", "h-full");
+    this.#svgContainer = document.createElement("div");
+    this.#svgContainer.classList.add(
+      "w-full",
+      "h-full",
+      "absolute",
+      "top-0",
+      "left-0",
+    );
+    this.#root.appendChild(this.#canvas);
+    this.#root.appendChild(this.#svgContainer);
+    this.#renderer = new ViewportRenderer(this.#canvas, this.#svgContainer);
 
     this.#setCanvasSize();
 
@@ -52,176 +64,36 @@ export class Viewport {
     this.#render(); // render immediately because changing canvas sizes clears the canvas
   }
 
-  #renderQueued = false;
+  // public render method
+  render() {
+    this.#queueRender();
+  }
+
+  #renderRequested = false;
   #queueRender() {
-    if (this.#renderQueued) return;
-    this.#renderQueued = true;
+    if (this.#renderRequested) return;
+    this.#renderRequested = true;
     requestAnimationFrame(() => {
       this.#render();
     });
   }
 
   #render() {
-    const { ui } = store.getState();
-    const screen = (n: number) => n / devicePixelRatio / ui.zoom;
-    this.#renderQueued = false;
-    const renderQueue: Array<() => void> = [];
-    const uiInfo = {
-      screen,
-      context: this.#renderer.ctx,
-    };
-    this.#renderer.render(
-      expect(store.getState().project, "Project not found"),
-      {
-        ...ui,
-        onRendered(node, renderInfo) {
-          // decide if clickable
-          // decide if it needs UI
-          switch (node.type) {
-            case "page":
-              if (ui.activePage === node.id) {
-                renderQueue.push(() => {
-                  renderSelectedPageUI(uiInfo, {
-                    width: node.width,
-                    height: node.height,
-                    transform: renderInfo.transform,
-                  });
-                });
-              }
-              break;
-            case "cell":
-              if (ui.selection.has(node)) {
-                renderQueue.push(() => {
-                  renderSelectedCellUI(uiInfo, renderInfo);
-                });
-              }
-          }
-        },
-      },
-    );
-
-    for (const cb of renderQueue) {
-      cb();
-    }
+    const { ui, project } = store.getState();
+    this.#renderRequested = false;
+    this.#renderer.render(expect(project, "Project not found"), ui);
   }
 }
 
-function renderSelectedPageUI(
-  {
-    context,
-    screen,
-  }: { context: CanvasRenderingContext2D; screen: (n: number) => number },
-  {
-    width,
-    height,
-    transform,
-  }: { width: number; height: number; transform: DOMMatrix },
-) {
-  context.save();
-  context.setTransform(transform);
-  context.strokeStyle = "#0ff";
-  context.lineWidth = screen(2);
-  context.strokeRect(
-    screen(-1),
-    screen(-1),
-    width + screen(2),
-    height + screen(2),
-  );
-  context.restore();
-}
-
-function renderSelectedCellUI(
-  {
-    context,
-    screen,
-  }: { context: CanvasRenderingContext2D; screen: (n: number) => number },
-  { transform, path }: { transform: DOMMatrix; path: Path2D },
-) {
-  context.save();
-  context.setTransform(transform);
-  context.strokeStyle = "#00ffff";
-  context.lineWidth = screen(2);
-  context.stroke(path);
-  context.restore();
-}
-
-class Interactvity {
-  #canvas: HTMLCanvasElement;
-  constructor(canvas: HTMLCanvasElement, s: typeof store) {
-    s.subscribe((state) => {
-      this.onStateChange(state);
-    });
-    this.#canvas = canvas;
-    this.onStateChange(s.getState());
-    this.#setCanvasListeners();
-  }
-
-  #setCanvasListeners() {
-    this.#canvas.addEventListener(
-      "wheel",
-      (e) => {
-        if (e.ctrlKey) {
-          // `ctrlKey` is set by the browser and doesn't need the key to be pressed
-          e.preventDefault(); // don't zoom the browser
-          const clientPos = eventVec2(e);
-          const zoomOrigin = screenToWorld(clientPos, store.getState().ui);
-          const currentZoom = store.getState().ui.zoom;
-          const pan = store.getState().ui.pan;
-          const zoomDelta = e.deltaY * -0.0125;
-          const originDelta = vec2Sub(
-            vec2mult(zoomOrigin, currentZoom),
-            vec2mult(zoomOrigin, currentZoom + zoomDelta),
-          );
-
-          store
-            .getState()
-            .setZoom(currentZoom + zoomDelta, vec2Add(pan, originDelta));
-        } else {
-          store.getState().setPan({
-            x: store.getState().ui.pan.x - e.deltaX,
-            y: store.getState().ui.pan.y - e.deltaY,
-          });
-        }
-      },
-      { passive: false },
-    );
-
-    this.#canvas.addEventListener("mousedown", (e) => {
-      if (e.button !== 0) return;
-
-      this.#select(e.clientX, e.clientY);
-    });
-  }
-
-  onStateChange({ project }: ReturnType<typeof store.getState>) {
-    assert(project, "Project not found");
-
-    // const view = {
-    //   x: ui.pan.x,
-    //   y: ui.pan.y,
-    //   width: this.#canvas.width / ui.zoom,
-    //   height: this.#canvas.height / ui.zoom,
-    // };
-
-    // const qt = quadTree(
-    //   {
-    //     x: view.x + view.width / 2,
-    //     y: view.y + view.height / 2 - (view.width - view.height) / 2, // bbox is square, so we need to offset the y to center the bbox
-    //   },
-    //   view.width / 2,
-    // );
-  }
-
-  #select(x: number, y: number) {
+function interactivity() {
+  function select(x: number, y: number) {
     const { project, ui } = store.getState();
     assert(project, "Project not found");
     const worldPos = screenToWorld({ x, y }, ui);
 
+    if (!project.pages.length) return;
+
     const deselect = () => store.getState().setActivePage("");
-
-    const aPage = project.pages.at(0);
-
-    if (!aPage) return;
 
     let found = null;
     for (const [i, page] of project.pages.entries()) {
@@ -246,7 +118,7 @@ class Interactvity {
     }
 
     // TODO: selection is in the active page. Select from elements in the active page.
-    console.log("click on active page");
+
     let clicked = false;
     const pageTranslation = project.pages.indexOf(found);
     found.children.forEach((child) => {
@@ -263,48 +135,76 @@ class Interactvity {
       store.getState().setSelectedNodes([]);
     }
   }
-}
-
-function nodeToBB(node: Node, offset: { x: number; y: number }) {
-  if (node.type === "cell") {
-    return aabbFromPoints(node.path.points, offset);
-  }
-  return null;
-}
-
-function aabbFromPoints(
-  points: { x: number; y: number }[],
-  offset: { x: number; y: number },
-) {
-  const minX = Math.min(...points.map((p) => p.x)) + offset.x;
-  const minY = Math.min(...points.map((p) => p.y)) + offset.y;
-  const maxX = Math.max(...points.map((p) => p.x)) + offset.x;
-  const maxY = Math.max(...points.map((p) => p.y)) + offset.y;
   return {
-    x: minX,
-    y: minY,
-    width: maxX - minX,
-    height: maxY - minY,
-    contains: (p: { x: number; y: number }) =>
-      p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY,
+    onWheel(e: WheelEvent) {
+      e.preventDefault();
+      if (e.ctrlKey) {
+        // `ctrlKey` is set by the browser and doesn't need the key to be pressed
+        e.preventDefault(); // don't zoom the browser
+        const clientPos = eventVec2(e);
+        const zoomOrigin = screenToWorld(clientPos, store.getState().ui);
+        const currentZoom = store.getState().ui.zoom;
+        const pan = store.getState().ui.pan;
+        const zoomDelta = e.deltaY * -0.0125;
+        const originDelta = vec2Sub(
+          vec2mult(zoomOrigin, currentZoom),
+          vec2mult(zoomOrigin, currentZoom + zoomDelta),
+        );
+
+        store
+          .getState()
+          .setZoom(currentZoom + zoomDelta, vec2Add(pan, originDelta));
+      } else {
+        store.getState().setPan({
+          x: store.getState().ui.pan.x - e.deltaX,
+          y: store.getState().ui.pan.y - e.deltaY,
+        });
+      }
+    },
+
+    onMouseDown(e: MouseEvent) {
+      console.log(e.target);
+      if (e.button !== 0) return;
+
+      select(e.clientX, e.clientY);
+    },
   };
 }
 
-interface UI {
-  zoom: number;
-  pan: { x: number; y: number };
-  canvasColor: string;
-  onRendered: (node: Node, renderInfo: any) => void;
-}
+export type RenderCallbackOptions =
+  | {
+      type: "page";
+      node: Page;
+      renderInfo: {
+        transform: DOMMatrix;
+      };
+    }
+  | {
+      type: "cell";
+      node: Cell;
+      renderInfo: {
+        transform: DOMMatrix;
+        path: Path2D;
+      };
+    };
+
+export type RenderCallback = (options: RenderCallbackOptions) => void;
 
 /** Manages rendering the screen of the application, which could be multiple pages as well as UI elements. */
 export class ViewportRenderer {
   #canvas: HTMLCanvasElement;
+  #root: ReactDOM.Root;
   ctx: CanvasRenderingContext2D;
-
-  constructor(canvas: HTMLCanvasElement) {
+  #interactivity: ReturnType<typeof interactivity>;
+  constructor(canvas: HTMLCanvasElement, svgContainer: HTMLDivElement) {
     this.#canvas = canvas;
     this.ctx = expect(canvas.getContext("2d"), "Canvas context not created");
+    this.#root = ReactDOM.createRoot(svgContainer);
+    this.#interactivity = interactivity();
+  }
+
+  destroy() {
+    this.#root.unmount();
   }
 
   #scope(fn: (context: CanvasRenderingContext2D) => void) {
@@ -313,12 +213,24 @@ export class ViewportRenderer {
     this.ctx.restore();
   }
 
-  render(project: Project, ui: UI) {
+  render(project: Project, ui: ExtractState<typeof store>["ui"]) {
     const context = this.ctx;
     context.fillStyle = ui.canvasColor;
     context.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
 
-    const uiRenders = [] as (() => void)[];
+    const uiData: UIData[] = [];
+    const addUIData = (data: UIData) => {
+      if ("active" in data && data.active) {
+        uiData.unshift(data);
+        return;
+      }
+      if ("selected" in data && data.selected) {
+        uiData.push(data);
+        return;
+      }
+      uiData.push(data);
+    };
+
     this.#scope((context) => {
       context.scale(devicePixelRatio, devicePixelRatio);
       context.translate(ui.pan.x, ui.pan.y);
@@ -328,28 +240,59 @@ export class ViewportRenderer {
         screen,
         context,
         project,
-        onRendered: ui.onRendered,
+        onRendered(opt) {
+          // decide if clickable
+          // decide if it needs UI
+          switch (opt.type) {
+            case "page":
+              if (ui.activePage !== opt.node.id) return;
+              addUIData({
+                type: "page",
+                node: opt.node,
+                transform: opt.renderInfo.transform,
+                active: true,
+                width: opt.node.width,
+                height: opt.node.height,
+              });
+              break;
+            case "cell":
+              if (!ui.selection.has(opt.node)) return;
+              addUIData({
+                type: "cell",
+                node: opt.node,
+                transform: opt.renderInfo.transform,
+                path: opt.renderInfo.path,
+                selected: true,
+              });
+              break;
+          }
+        },
       };
 
       for (const [i, page] of project.pages.entries()) {
         this.#scope((context) => {
           const { width } = page;
           context.translate(width * i, 0);
-
-          // TODO: Mask the area of the page that is not visible in the viewport, (but also support removing the mask)
-          renderPage(renderInfo, page);
+          this.#scope(() => {
+            // TODO: Mask the area of the page that is not visible in the viewport, (but also support removing the mask)
+            renderPage(renderInfo, page);
+          });
         });
       }
-      for (const uiRender of uiRenders) {
-        uiRender();
-      }
     });
-  }
-}
 
-function screenToWorld(
-  pos: { x: number; y: number },
-  ui: { pan: { x: number; y: number }; zoom: number },
-) {
-  return vec2Div(vec2Sub(pos, ui.pan), ui.zoom);
+    this.#root.render(
+      React.createElement(
+        React.StrictMode,
+        null,
+        React.createElement(RootSVG, {
+          data: uiData,
+          width: this.#canvas.width,
+          height: this.#canvas.height,
+          onWheel: this.#interactivity.onWheel,
+          onMouseDown: this.#interactivity.onMouseDown,
+        }),
+      ),
+    );
+  }
 }

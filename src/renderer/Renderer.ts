@@ -1,10 +1,11 @@
-import { Cell, Page, Project, Node } from "../project/Project.js";
+import type { RenderCallback } from "../app/Viewport.js";
+import type { Cell, Page, Project } from "../project/Project.js";
 
 export interface RenderInfo {
   screen: (n: number) => number;
   context: CanvasRenderingContext2D;
   project: Project;
-  onRendered?: (node: Node, renderInfo: any) => void;
+  onRendered?: RenderCallback;
 }
 
 export function renderPage(renderInfo: RenderInfo, page: Page) {
@@ -18,9 +19,12 @@ export function renderPage(renderInfo: RenderInfo, page: Page) {
         break;
     }
   }
-  renderInfo.onRendered?.(page, {
+  renderInfo.onRendered?.({
     type: "page",
-    transform: context.getTransform(),
+    node: page,
+    renderInfo: {
+      transform: context.getTransform(),
+    },
   });
   for (const child of children) {
     if (child.type === "cell") {
@@ -34,9 +38,17 @@ function renderCell(renderInfo: RenderInfo, cell: Cell) {
   const { translation, path, fills } = cell;
   const path2d = new Path2D();
 
-  path2d.moveTo(path.points[0].x, path.points[0].y);
+  let started = false;
   for (const point of path.points) {
-    path2d.lineTo(point.x, point.y);
+    if (!started) {
+      path2d.moveTo(point.x, point.y);
+      started = true;
+    } else {
+      path2d.lineTo(point.x, point.y);
+    }
+  }
+  if (path.closed) {
+    path2d.closePath();
   }
 
   context.save();
@@ -49,10 +61,13 @@ function renderCell(renderInfo: RenderInfo, cell: Cell) {
         break;
     }
   }
-  renderInfo.onRendered?.(cell, {
+  renderInfo.onRendered?.({
     type: "cell",
-    transform: context.getTransform(),
-    path: path2d,
+    node: cell,
+    renderInfo: {
+      transform: context.getTransform(),
+      path: path2d,
+    },
   });
   context.restore();
 }
