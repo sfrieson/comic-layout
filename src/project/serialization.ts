@@ -65,12 +65,14 @@ export function serializeProject(project: Project): SerializedProject {
         });
         break;
       }
-      case "cell":
+      case "cell": {
+        const { parent, ...rest } = node;
         nodes.push({
-          ...node,
+          ...rest,
           children: node.children.map((child) => child.id),
         });
         break;
+      }
       default: {
         const _unreachable: never = node;
         throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);

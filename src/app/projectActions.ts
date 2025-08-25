@@ -153,6 +153,24 @@ export const addPage = () => {
   );
 };
 
+export const removeCell = (cell: Cell) => {
+  const { history } = store.getState();
+  const parent = cell.parent;
+  const childrenIndex = parent?.children.indexOf(cell);
+  history.add(
+    history.actionSet(
+      () => {
+        requireProject().removeCell(parent, cell);
+        projectUpdated();
+      },
+      () => {
+        requireProject().addCell(parent, cell, childrenIndex);
+        projectUpdated();
+      },
+    ),
+  );
+};
+
 export const removePage = (pageId: string) => {
   const { history, setActivePage } = store.getState();
   const project = requireProject();
@@ -190,7 +208,7 @@ export function addCellToPage(pageId: string) {
   const { history } = store.getState();
   const project = requireProject();
   const page = requirePage(pageId);
-  const cell = Cell.create({});
+  const cell = Cell.create({ parent: page });
 
   history.add(
     history.actionSet(

@@ -1,5 +1,3 @@
-import React from "react";
-import ReactDOM from "react-dom";
 import { createStore } from "zustand";
 import { combine } from "zustand/middleware";
 

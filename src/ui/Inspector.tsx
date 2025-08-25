@@ -11,6 +11,7 @@ import {
 import { useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
 import { Cell } from "../project/Project.js";
+import { useHotkeys } from "react-hotkeys-hook";
 
 export function Inspector() {
   const selection = useStore(store, (s) => s.ui.selection);
@@ -27,6 +28,9 @@ export function Inspector() {
 }
 
 function CellInspector({ node }: { node: Cell }) {
+  useHotkeys("delete", () => {
+    removeCell(node.id);
+  });
   return <div>Cell Inspector</div>;
 }
 

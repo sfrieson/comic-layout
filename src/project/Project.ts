@@ -1,3 +1,4 @@
+import { assert, expect } from "../utils/assert.js";
 import { expectSerializedNode } from "./serialization.js";
 import {
   SerializedCell,
@@ -63,12 +64,13 @@ export class Page {
   ) {
     const page = new Page({
       ...serialized,
-      children: serialized.children.map((id) => {
-        const node = expectSerializedNode(nodeMap.get(id), "cell");
-        const cell = Cell.fromSerialized(project, nodeMap, node);
-        project.nodeMap.set(cell.id, cell);
-        return cell;
-      }),
+      children: [],
+    });
+    project.nodeMap.set(page.id, page);
+    serialized.children.forEach((id) => {
+      const node = expectSerializedNode(nodeMap.get(id), "cell");
+      const cell = Cell.fromSerialized(project, nodeMap, node, page);
+      page.children.push(cell);
     });
 
     return page;
@@ -80,46 +82,50 @@ export class Cell {
   id: string;
   translation: { x: number; y: number };
   fills: Fill[];
-  children: Node[];
   path: Path;
+  children: Node[];
+  parent: Page;
 
   constructor(opt: {
     id: string;
     translation?: { x: number; y: number };
     fills: Fill[];
     children: Node[];
-    path?: Path;
+    path: Path;
+    parent: Page;
   }) {
     this.id = opt.id;
     this.translation = opt.translation ?? { x: 0, y: 0 };
     this.fills = opt.fills;
     this.children = opt.children ?? [];
-    this.path =
-      opt.path ??
-      Path.create({
-        points: [
-          { x: 0, y: 0 },
-          { x: 100, y: 0 },
-          { x: 100, y: 100 },
-          { x: 0, y: 100 },
-        ],
-        closed: false,
-      });
+    this.path = opt.path;
+    this.parent = opt.parent;
   }
 
-  static create(
-    opt: {
-      translation?: { x: number; y: number };
-      fills?: Fill[];
-      children?: Node[];
-      path?: Path;
-    } = {},
-  ) {
+  static create(opt: {
+    translation?: { x: number; y: number };
+    fills?: Fill[];
+    children?: Node[];
+    path?: Path;
+    parent: Page;
+  }) {
     return new Cell({
       id: uuid(),
       ...opt,
       fills: opt.fills ?? [{ type: "color", value: "#dddddd", opacity: 1 }],
       children: opt.children ?? [],
+      path:
+        opt.path ??
+        Path.create({
+          points: [
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+            { x: 100, y: 100 },
+            { x: 0, y: 100 },
+          ],
+          closed: false,
+        }),
+      parent: opt.parent,
     });
   }
 
@@ -127,6 +133,7 @@ export class Cell {
     project: Project,
     nodeMap: SeralizedNodeMap,
     serialized: SerializedCell,
+    parent: Page,
   ) {
     const cell = new Cell({
       ...serialized,
@@ -137,8 +144,9 @@ export class Cell {
       // }),
       path: Path.fromSerialized(project, nodeMap, serialized.path),
       children: [],
+      parent,
     });
-
+    project.nodeMap.set(cell.id, cell);
     return cell;
   }
 }
@@ -199,7 +207,7 @@ export class Project {
       serialized?.pages.map((id) => {
         const node = expectSerializedNode(nodeMap.get(id), "page");
         const page = Page.fromSerialized(this, nodeMap, node);
-        this.nodeMap.set(page.id, page);
+
         return page;
       }) ?? [];
 
@@ -224,13 +232,29 @@ export class Project {
     //  They should be cleaned up in serialization.
   }
 
-  addCell(page: Page, cell: Cell) {
-    page.children.push(cell);
+  addCell(page: Page, cell: Cell, index: number | null = null) {
+    if (index === null) {
+      page.children.push(cell);
+    } else {
+      page.children.splice(index, 0, cell);
+    }
     this.nodeMap.set(cell.id, cell);
   }
 
   removeCell(page: Page, cell: Cell) {
-    page.children = page.children.filter((c) => c.id !== cell.id);
+    if (page) page.children = page.children.filter((c) => c.id !== cell.id);
     this.nodeMap.delete(cell.id);
   }
+}
+
+export function expectNodeType<T extends Node["type"]>(
+  node: Node | undefined,
+  type: T,
+): Extract<Node, { type: T }> {
+  assert(node, `Node not found`);
+
+  return expect(
+    node.type === type,
+    `Node ${node.id} is not a ${type}`,
+  ) as unknown as Extract<Node, { type: T }>;
 }
