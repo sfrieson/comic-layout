@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { vec2Sub, vec2Add, vec2mult, vec2Div, eventVec2 } from "./vec2.js";
+import { vec2Sub, vec2Add, vec2Mult, vec2Div, eventVec2 } from "./vec2.js";
 
 describe("vec2Sub", () => {
   it("should subtract two vectors", () => {
@@ -22,10 +22,10 @@ describe("vec2Add", () => {
 
 describe("vec2mult", () => {
   it("should multiply two vectors", () => {
-    expect(vec2mult({ x: 1, y: 2 }, { x: 3, y: 4 })).toEqual({ x: 3, y: 8 });
+    expect(vec2Mult({ x: 1, y: 2 }, { x: 3, y: 4 })).toEqual({ x: 3, y: 8 });
   });
   it("should multiply a vector by a scalar", () => {
-    expect(vec2mult({ x: 1, y: 2 }, 3)).toEqual({ x: 3, y: 6 });
+    expect(vec2Mult({ x: 1, y: 2 }, 3)).toEqual({ x: 3, y: 6 });
   });
 });
 

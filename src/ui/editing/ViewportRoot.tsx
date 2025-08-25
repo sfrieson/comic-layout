@@ -1,6 +1,16 @@
-import { Fragment, useEffect, useState } from "react";
+import {
+  createContext,
+  Fragment,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Cell, Page } from "../../project/Project.js";
 import { aabbFromPoints } from "../../utils/viewportUtils.js";
+import { useDrag } from "../hooks.js";
+import type { scaleCell, translateCell } from "../../app/projectActions.js";
+import { vec2Add, vec2Div, vec2Mult, vec2Sub } from "../../utils/vec2.js";
 
 export interface PageData {
   type: "page";
@@ -27,13 +37,15 @@ export function RootSVG({
   onMouseDown,
   width,
   height,
+  scaleCell,
+  translateCell,
 }: {
   onWheel: (e: WheelEvent) => void;
   onMouseDown: (e: MouseEvent) => void;
   data: Data[];
   width: number;
   height: number;
-}) {
+} & Actions) {
   const [svg, setSvg] = useState<SVGSVGElement | null>(null);
 
   useEffect(() => {
@@ -41,6 +53,14 @@ export function RootSVG({
     svg.addEventListener("wheel", onWheel);
     return () => svg.removeEventListener("wheel", onWheel);
   }, [svg, onWheel]);
+
+  const actions = useMemo(
+    () => ({
+      scaleCell,
+      translateCell,
+    }),
+    [scaleCell, translateCell],
+  );
 
   return (
     <svg
@@ -52,14 +72,16 @@ export function RootSVG({
         overflow: "hidden",
       }}
     >
-      {data.map((d) => {
-        switch (d.type) {
-          case "page":
-            return <PageComponent key={d.node.id} {...d} />;
-          case "cell":
-            return <CellComponent key={d.node.id} {...d} />;
-        }
-      })}
+      <ActionContext.Provider value={actions}>
+        {data.map((d) => {
+          switch (d.type) {
+            case "page":
+              return <PageComponent key={d.node.id} {...d} />;
+            case "cell":
+              return <CellComponent key={d.node.id} {...d} />;
+          }
+        })}
+      </ActionContext.Provider>
     </svg>
   );
 }
@@ -90,6 +112,7 @@ function PageComponent({ node, transform, active }: PageData) {
 function CellComponent({ node, transform, selected }: CellData) {
   const points = node.path.points.map((p) => applyTransform(transform, p));
   const bb = aabbFromPoints(points);
+  const { scaleCell, translateCell } = useContext(ActionContext);
   return (
     <Fragment>
       <path
@@ -98,7 +121,28 @@ function CellComponent({ node, transform, selected }: CellData) {
         stroke={selected ? "cyan" : "transparent"}
         strokeWidth={selected ? 2 : 0}
       />
-      <BoundingBox {...bb} />
+      <BoundingBox
+        {...bb}
+        onScale={(handle, delta) => {
+          scaleCell(
+            node.id,
+            handle,
+            vec2Div(delta, {
+              x: transform.a,
+              y: transform.d,
+            }),
+          );
+        }}
+        onTranslate={(delta) => {
+          translateCell(
+            node.id,
+            vec2Div(delta, {
+              x: transform.a,
+              y: transform.d,
+            }),
+          );
+        }}
+      />
     </Fragment>
   );
 }
@@ -108,50 +152,173 @@ function BoundingBox({
   y,
   width,
   height,
+  onScale,
+  onTranslate,
 }: {
   x: number;
   y: number;
   width: number;
   height: number;
+  onScale?: (
+    scale: { x: number; y: number },
+    translate: { x: number; y: number },
+  ) => void;
+  onTranslate?: (delta: { x: number; y: number }) => void;
 }) {
-  const handles = [
-    [0, 0] as const,
-    [0, 0.5] as const,
-    [0, 1] as const,
-    [0.5, 0] as const,
-    [0.5, 1] as const,
-    [1, 0] as const,
-    [1, 0.5] as const,
-    [1, 1] as const,
-  ].map(([mX, mY]) => {
-    const size = 15;
-    return (
-      <rect
-        key={`${mX},${mY}`}
-        x={x + mX * width - size / 2}
-        y={y + mY * height - size / 2}
-        width={size}
-        height={size}
-        fill="green"
-        stroke="black"
-        strokeWidth={1}
-      />
-    );
+  const { onMouseDown } = useDrag((delta) => {
+    onTranslate?.(vec2Mult(delta, devicePixelRatio));
   });
+  const dimensions = { x: width, y: height };
+
+  function handleMoveToScale(
+    location: HandleLocation,
+    delta: { x: number; y: number },
+    mirrorDelta = false,
+  ) {
+    let left = 0;
+    let top = 0;
+    let right = width;
+    let bottom = height;
+    if (location === "nw" || location === "n" || location === "ne") {
+      top += delta.y;
+    }
+    if (location === "nw" || location === "w" || location === "sw") {
+      left += delta.x;
+    }
+    if (location === "se" || location === "s" || location === "sw") {
+      bottom += delta.y;
+    }
+    if (location === "ne" || location === "e" || location === "se") {
+      right += delta.x;
+    }
+    if (mirrorDelta) {
+      location = handleComplement(location);
+      delta = vec2Mult(delta, -1);
+      if (location === "nw" || location === "n" || location === "ne") {
+        top += delta.y;
+      }
+      if (location === "nw" || location === "w" || location === "sw") {
+        left += delta.x;
+      }
+      if (location === "se" || location === "s" || location === "sw") {
+        bottom += delta.y;
+      }
+      if (location === "ne" || location === "e" || location === "se") {
+        right += delta.x;
+      }
+    }
+
+    let newWidth = right - left;
+    let newHeight = bottom - top;
+    if (newWidth < 10) newWidth = 10;
+    if (newHeight < 10) newHeight = 10;
+
+    const scale = vec2Div(
+      { x: newWidth, y: newHeight },
+      { x: width, y: height },
+    );
+
+    onScale?.(scale, { x: left, y: top });
+  }
+
   return (
-    <Fragment>
+    <g transform={`translate(${x}, ${y})`}>
       <rect
-        x={x}
-        y={y}
         width={width}
         height={height}
         fill="transparent"
         stroke="green"
         strokeWidth={4}
+        onMouseDown={onMouseDown}
       />
-      {handles}
-    </Fragment>
+      {(["nw", "ne", "sw", "se", "n", "e", "s", "w"] as const).map(
+        (location) => {
+          const size = 20;
+          const scale = handleScale(location);
+
+          const h = vec2Mult(scale, dimensions);
+
+          return (
+            <Handle
+              key={location}
+              x={h.x - size / 2}
+              y={h.y - size / 2}
+              size={size}
+              location={location}
+              onMove={(delta, { meta }) =>
+                handleMoveToScale(location, delta, meta)
+              }
+            />
+          );
+        },
+      )}
+    </g>
   );
+}
+
+function Handle({
+  x,
+  y,
+  size,
+  location,
+  onMove: onMove,
+}: {
+  x: number;
+  y: number;
+  size: number;
+  location: HandleLocation;
+  onMove?: (
+    delta: { x: number; y: number },
+    mirror: { shift: boolean; ctrl: boolean; alt: boolean; meta: boolean },
+  ) => void;
+}) {
+  const { onMouseDown } = useDrag((delta, modifiers) => {
+    delta = vec2Mult(delta, devicePixelRatio);
+    if (location === "e" || location === "w") {
+      onMove?.({ x: delta.x, y: 0 }, modifiers);
+    } else if (location === "n" || location === "s") {
+      onMove?.({ x: 0, y: delta.y }, modifiers);
+    } else {
+      onMove?.({ x: delta.x, y: delta.y }, modifiers);
+    }
+  });
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={size}
+      height={size}
+      fill="green"
+      stroke="black"
+      strokeWidth={1}
+      onMouseDown={onMouseDown}
+    />
+  );
+}
+type HandleLocation = "nw" | "ne" | "sw" | "se" | "n" | "e" | "s" | "w";
+
+function handleComplement(handle: HandleLocation) {
+  if (handle === "nw") return "se";
+  if (handle === "ne") return "sw";
+  if (handle === "sw") return "ne";
+  if (handle === "se") return "nw";
+  if (handle === "n") return "s";
+  if (handle === "e") return "w";
+  if (handle === "s") return "n";
+  if (handle === "w") return "e";
+  throw new Error(`Invalid handle: ${handle}`);
+}
+
+function handleScale(handle: HandleLocation) {
+  if (handle === "nw") return { x: 0, y: 0 };
+  if (handle === "ne") return { x: 1, y: 0 };
+  if (handle === "sw") return { x: 0, y: 1 };
+  if (handle === "se") return { x: 1, y: 1 };
+  if (handle === "n") return { x: 0.5, y: 0 };
+  if (handle === "e") return { x: 1, y: 0.5 };
+  if (handle === "s") return { x: 0.5, y: 1 };
+  if (handle === "w") return { x: 0, y: 0.5 };
+  throw new Error(`Invalid handle: ${handle}`);
 }
 
 function applyTransform(transform: DOMMatrix, point: { x: number; y: number }) {
@@ -163,3 +330,13 @@ function applyTransform(transform: DOMMatrix, point: { x: number; y: number }) {
 function pathToSVG(points: { x: number; y: number }[], closed: boolean) {
   return `M ${points.map((p) => `${p.x},${p.y}`).join("L")} ${closed ? "Z" : ""}`;
 }
+
+interface Actions {
+  scaleCell: typeof scaleCell;
+  translateCell: typeof translateCell;
+}
+
+const ActionContext = createContext<Actions>({
+  scaleCell: () => {},
+  translateCell: () => {},
+});

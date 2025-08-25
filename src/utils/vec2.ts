@@ -18,7 +18,7 @@ export function vec2Add(
   return { x: a.x + b.x, y: a.y + b.y };
 }
 
-export function vec2mult(
+export function vec2Mult(
   a: { x: number; y: number },
   b: { x: number; y: number } | number,
 ) {

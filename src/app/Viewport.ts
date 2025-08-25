@@ -1,13 +1,14 @@
 import { Cell, Page, Project } from "../project/Project.js";
 import { RenderInfo, renderPage } from "../renderer/Renderer.js";
 import { assert, expect } from "../utils/assert.js";
-import { eventVec2, vec2Add, vec2mult, vec2Sub } from "../utils/vec2.js";
+import { eventVec2, vec2Add, vec2Mult, vec2Sub } from "../utils/vec2.js";
 import { store } from "./App.js";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { RootSVG, Data as UIData } from "../ui/editing/ViewportRoot.js";
 import { ExtractState } from "zustand";
 import { nodeToBB, screenToWorld } from "../utils/viewportUtils.js";
+import { scaleCell, translateCell } from "./projectActions.js";
 
 export class Viewport {
   #root: HTMLElement;
@@ -90,7 +91,7 @@ function interactivity() {
     const { project, ui } = store.getState();
     assert(project, "Project not found");
     const worldPos = screenToWorld({ x, y }, ui);
-
+    console.log(worldPos);
     if (!project.pages.length) return;
 
     const deselect = () => store.getState().setActivePage("");
@@ -122,7 +123,15 @@ function interactivity() {
     let clicked = false;
     const pageTranslation = project.pages.indexOf(found);
     found.children.forEach((child) => {
-      const bb = nodeToBB(child, { x: pageTranslation * found.width, y: 0 });
+      let translation = { x: 0, y: 0 };
+      if ("translation" in child) {
+        translation = child.translation;
+      }
+      const bb = nodeToBB(
+        child,
+        vec2Add(translation, { x: pageTranslation * found.width, y: 0 }),
+      );
+      console.log(bb);
       if (!bb) return;
 
       if (bb.contains(worldPos)) {
@@ -147,8 +156,8 @@ function interactivity() {
         const pan = store.getState().ui.pan;
         const zoomDelta = e.deltaY * -0.0125;
         const originDelta = vec2Sub(
-          vec2mult(zoomOrigin, currentZoom),
-          vec2mult(zoomOrigin, currentZoom + zoomDelta),
+          vec2Mult(zoomOrigin, currentZoom),
+          vec2Mult(zoomOrigin, currentZoom + zoomDelta),
         );
 
         store
@@ -163,7 +172,6 @@ function interactivity() {
     },
 
     onMouseDown(e: MouseEvent) {
-      console.log(e.target);
       if (e.button !== 0) return;
 
       select(e.clientX, e.clientY);
@@ -291,6 +299,8 @@ export class ViewportRenderer {
           height: this.#canvas.height,
           onWheel: this.#interactivity.onWheel,
           onMouseDown: this.#interactivity.onMouseDown,
+          scaleCell: scaleCell,
+          translateCell,
         }),
       ),
     );

@@ -2,6 +2,7 @@ import { store } from "./App.js";
 import { assert, expect } from "../utils/assert.js";
 import { Cell, Page, Project } from "../project/Project.js";
 import { insertAtIndex } from "../utils/array.js";
+import { vec2Add, vec2Mult } from "../utils/vec2.js";
 
 const requireProject = () =>
   expect(store.getState().project, "Project not found");
@@ -11,6 +12,13 @@ const requirePage = (pageId: string) => {
   const page = expect(project.nodeMap.get(pageId), "Page node not found");
   assert(page.type === "page", "Node is not a page");
   return page;
+};
+
+const requireCell = (cellId: string) => {
+  const project = requireProject();
+  const cell = expect(project.nodeMap.get(cellId), "Cell node not found");
+  assert(cell.type === "cell", "Node is not a cell");
+  return cell;
 };
 
 const listeners = new Set<(project: Project) => void>();
@@ -197,3 +205,56 @@ export function addCellToPage(pageId: string) {
     ),
   );
 }
+
+export const scaleCell = (
+  cellId: string,
+  scale: { x: number; y: number },
+  translate: { x: number; y: number } = { x: 0, y: 0 },
+) => {
+  const { history } = store.getState();
+  const cell = requireCell(cellId);
+
+  const originalPathPoints = cell.path.points;
+  const originalTranslation = cell.translation;
+
+  history.add(
+    history.actionSet(
+      () => {
+        cell.path.points = originalPathPoints.map((pt) => vec2Mult(pt, scale));
+        cell.translation = vec2Add(originalTranslation, translate);
+        projectUpdated();
+      },
+      () => {
+        cell.path.points = originalPathPoints;
+        cell.translation = originalTranslation;
+        projectUpdated();
+      },
+      {
+        key: `scale-cell-${cellId}`,
+      },
+    ),
+  );
+};
+
+export const translateCell = (
+  cellId: string,
+  delta: { x: number; y: number },
+) => {
+  const { history } = store.getState();
+  const cell = requireCell(cellId);
+  const before = { ...cell.translation };
+
+  history.add(
+    history.actionSet(
+      () => {
+        cell.translation.x += delta.x;
+        cell.translation.y += delta.y;
+        projectUpdated();
+      },
+      () => {
+        cell.translation = before;
+        projectUpdated();
+      },
+    ),
+  );
+};
