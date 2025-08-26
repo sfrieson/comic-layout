@@ -1,17 +1,19 @@
 import { useStore } from "zustand";
-import { store, useProject } from "../app/App.js";
+import { store } from "../app/App.js";
 import {
   addCellToPage,
   addPage,
+  removeCell,
   removePage,
   setName,
+  setNodeFillAtIndex,
   setPageDimensions,
-  setPageFillColor,
 } from "../app/projectActions.js";
 import { useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
-import { Cell } from "../project/Project.js";
+import { Cell, Fill } from "../project/Project.js";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useProject } from "./ProjectContext.js";
 
 export function Inspector() {
   const selection = useStore(store, (s) => s.ui.selection);
@@ -28,10 +30,23 @@ export function Inspector() {
 }
 
 function CellInspector({ node }: { node: Cell }) {
-  useHotkeys("delete", () => {
-    removeCell(node.id);
-  });
-  return <div>Cell Inspector</div>;
+  useHotkeys("backspace", () => removeCell(node));
+  return (
+    <div>
+      <p>Cell Inspector</p>
+      <div>
+        <h3>Fills</h3>
+        {node.fills.map((fill, i) => (
+          <FillEditor
+            key={`fill-${i}-${fill.type}`}
+            {...fill}
+            nodeId={node.id}
+            i={i}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function ProjectInspector() {
@@ -80,7 +95,7 @@ function IdleInspector() {
 }
 
 function LoadedProjectInspector() {
-  const project = useProject();
+  const project = useProject((p) => p);
   const name = project.meta.name;
   const pageWidth = project.pages.at(0)?.width ?? 1080;
   const pageHeight = project.pages.at(0)?.height ?? 1080;
@@ -148,24 +163,100 @@ function PageInspector() {
           Background Fill
           <div>
             {page.fills.map((fill, i) => (
-              <div key={`fill-${i}-${fill.type}`}>
-                {fill.type}
-                <input
-                  type="color"
-                  className="w-full h-16"
-                  name="backgroundColor"
-                  value={fill.value}
-                  onChange={(e) => {
-                    setPageFillColor(page.id, i, e.target.value);
-                  }}
-                />
-              </div>
+              <FillEditor
+                key={`fill-${i}-${fill.type}`}
+                {...fill}
+                nodeId={page.id}
+                i={i}
+              />
             ))}
           </div>
         </label>
       </div>
 
       <button onClick={() => addCellToPage(page.id)}>Add cell</button>
+    </div>
+  );
+}
+
+function FillEditor({
+  type,
+  value,
+  opacity,
+  nodeId,
+  i,
+}: Fill & { i: number; nodeId: string }) {
+  if (type === "color") {
+    return (
+      <ColorFillEditor value={value} opacity={opacity} nodeId={nodeId} i={i} />
+    );
+  }
+  return null;
+}
+
+function ColorFillEditor({
+  value,
+  nodeId,
+  opacity,
+  i,
+}: {
+  value: string;
+  opacity: number;
+  nodeId: string;
+  i: number;
+}) {
+  return (
+    <div className="flex gap-2 h-8">
+      <div className="h-full aspect-square">
+        <input
+          type="color"
+          className="h-full w-full p-0"
+          name="color"
+          value={value}
+          onChange={(e) => {
+            setNodeFillAtIndex(nodeId, i, (fill) => ({
+              ...fill,
+              value: e.target.value,
+            }));
+          }}
+        />
+      </div>
+      <div className="flex gap-2 h-full">
+        <div className="h-full w-full">
+          <input
+            type="text"
+            className="h-full w-full p-0"
+            name="color"
+            defaultValue={value}
+            onBlur={(e) => {
+              setNodeFillAtIndex(nodeId, i, (fill) => ({
+                ...fill,
+                value: e.target.value,
+              }));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              }
+            }}
+          />
+        </div>
+        <div className="h-full w-full">
+          <input
+            type="number"
+            className="h-full w-full p-0"
+            name="opacity"
+            value={opacity * 100}
+            onChange={(e) => {
+              console.log(e.target.valueAsNumber / 100);
+              setNodeFillAtIndex(nodeId, i, (fill) => ({
+                ...fill,
+                opacity: e.target.valueAsNumber / 100,
+              }));
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

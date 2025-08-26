@@ -2,11 +2,9 @@ import { createStore } from "zustand";
 import { combine } from "zustand/middleware";
 
 import { Viewport } from "./Viewport.js";
-import { assert, expect } from "../utils/assert.js";
+import { assert } from "../utils/assert.js";
 import type { Node, Project } from "../project/Project.js";
 import { loadProjectFile, serializeProject } from "../project/serialization.js";
-import { useSyncExternalStore } from "react";
-import { subscribeToChanges } from "./projectActions.js";
 import { createFile, openFile, readFile, writeFile } from "../utils/file.js";
 import { createHistory } from "../history/history.js";
 
@@ -116,21 +114,3 @@ export const store = createStore(
     },
   ),
 );
-
-let cachedChange = { ["-1"]: null } as Record<number, Project | null>;
-
-export function useProject() {
-  const project = useSyncExternalStore(subscribeToChanges, () => {
-    const project = expect(store.getState().project, "Project not found");
-
-    const cached = cachedChange[project.meta._changes];
-    if (cached) return cached;
-
-    const newProject = { ...project };
-
-    cachedChange = { [project.meta._changes]: newProject };
-    return newProject;
-  });
-
-  return project;
-}

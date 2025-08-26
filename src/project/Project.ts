@@ -1,4 +1,5 @@
 import { assert, expect } from "../utils/assert.js";
+import { PropertySetter } from "../utils/types.js";
 import { expectSerializedNode } from "./serialization.js";
 import {
   SerializedCell,
@@ -15,16 +16,50 @@ interface ColorFill {
   opacity: number;
 }
 
-type Fill = ColorFill;
+interface ImageFill {
+  type: "image";
+  value: string;
+  opacity: number;
+}
+
+export type Fill = ColorFill | ImageFill;
+
+class WithFills {
+  fills: Fill[];
+
+  constructor(opt: { fills: Fill[] }) {
+    this.fills = opt.fills;
+  }
+
+  setFill(index: number, fill: PropertySetter<Fill>) {
+    const currentFill = expect(this.fills[index], "Fill not found");
+    if (typeof fill === "function") {
+      this.fills[index] = fill(currentFill);
+    } else {
+      this.fills[index] = fill;
+    }
+  }
+  addFill(fill: Fill, at: number | null = null) {
+    if (at === null) {
+      this.fills.push(fill);
+    } else {
+      this.fills.splice(at, 0, fill);
+    }
+  }
+
+  removeFill(index: number) {
+    assert(this.fills[index], "Fill not found");
+    this.fills.splice(index, 1);
+  }
+}
 
 type SeralizedNodeMap = Map<string, SerializedNode>;
-export class Page {
+export class Page extends WithFills {
   type = "page" as const;
   id: string;
   name: string;
   width: number;
   height: number;
-  fills: Fill[];
   children: Node[];
 
   constructor(opt: {
@@ -35,53 +70,52 @@ export class Page {
     fills: Fill[];
     children: Node[];
   }) {
+    super(opt);
     this.id = opt.id;
     this.name = opt.name ?? "Page";
     this.width = opt.width;
     this.height = opt.height;
-    this.fills = opt.fills;
     this.children = opt.children;
-  }
-
-  static create(opt: {
-    width: number;
-    height: number;
-    fills?: Fill[];
-    children?: Node[];
-  }) {
-    return new Page({
-      ...opt,
-      id: uuid(),
-      fills: opt.fills ?? [{ type: "color", value: "#ffffff", opacity: 1 }],
-      children: opt.children ?? [],
-    });
-  }
-
-  static fromSerialized(
-    project: Project,
-    nodeMap: SeralizedNodeMap,
-    serialized: SerializedPage,
-  ) {
-    const page = new Page({
-      ...serialized,
-      children: [],
-    });
-    project.nodeMap.set(page.id, page);
-    serialized.children.forEach((id) => {
-      const node = expectSerializedNode(nodeMap.get(id), "cell");
-      const cell = Cell.fromSerialized(project, nodeMap, node, page);
-      page.children.push(cell);
-    });
-
-    return page;
   }
 }
 
-export class Cell {
+export function createPage(opt: {
+  width: number;
+  height: number;
+  fills?: Fill[];
+  children?: Node[];
+}) {
+  return new Page({
+    ...opt,
+    id: uuid(),
+    fills: opt.fills ?? [{ type: "color", value: "#ffffff", opacity: 1 }],
+    children: opt.children ?? [],
+  });
+}
+
+export function pageFromSerialized(
+  project: Project,
+  nodeMap: SeralizedNodeMap,
+  serialized: SerializedPage,
+) {
+  const page = new Page({
+    ...serialized,
+    children: [],
+  });
+  project.nodeMap.set(page.id, page);
+  serialized.children.forEach((id) => {
+    const node = expectSerializedNode(nodeMap.get(id), "cell");
+    const cell = cellFromSerialized(project, nodeMap, node, page);
+    page.children.push(cell);
+  });
+
+  return page;
+}
+
+export class Cell extends WithFills {
   type = "cell" as const;
   id: string;
   translation: { x: number; y: number };
-  fills: Fill[];
   path: Path;
   children: Node[];
   parent: Page;
@@ -94,61 +128,61 @@ export class Cell {
     path: Path;
     parent: Page;
   }) {
+    super(opt);
     this.id = opt.id;
     this.translation = opt.translation ?? { x: 0, y: 0 };
-    this.fills = opt.fills;
     this.children = opt.children ?? [];
     this.path = opt.path;
     this.parent = opt.parent;
   }
+}
 
-  static create(opt: {
-    translation?: { x: number; y: number };
-    fills?: Fill[];
-    children?: Node[];
-    path?: Path;
-    parent: Page;
-  }) {
-    return new Cell({
-      id: uuid(),
-      ...opt,
-      fills: opt.fills ?? [{ type: "color", value: "#dddddd", opacity: 1 }],
-      children: opt.children ?? [],
-      path:
-        opt.path ??
-        Path.create({
-          points: [
-            { x: 0, y: 0 },
-            { x: 100, y: 0 },
-            { x: 100, y: 100 },
-            { x: 0, y: 100 },
-          ],
-          closed: false,
-        }),
-      parent: opt.parent,
-    });
-  }
+export function createCell(opt: {
+  translation?: { x: number; y: number };
+  fills?: Fill[];
+  children?: Node[];
+  path?: Path;
+  parent: Page;
+}) {
+  return new Cell({
+    id: uuid(),
+    ...opt,
+    fills: opt.fills ?? [{ type: "color", value: "#dddddd", opacity: 1 }],
+    children: opt.children ?? [],
+    path:
+      opt.path ??
+      Path.create({
+        points: [
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+          { x: 100, y: 100 },
+          { x: 0, y: 100 },
+        ],
+        closed: false,
+      }),
+    parent: opt.parent,
+  });
+}
 
-  static fromSerialized(
-    project: Project,
-    nodeMap: SeralizedNodeMap,
-    serialized: SerializedCell,
-    parent: Page,
-  ) {
-    const cell = new Cell({
-      ...serialized,
-      // children: serialized.children.map((id) => {
-      //   const node = expectSerializedNode(nodeMap.get(id), "cell");
-      //   const cell = Cell.fromSerialized(project, nodeMap, node);
-      //   return cell;
-      // }),
-      path: Path.fromSerialized(project, nodeMap, serialized.path),
-      children: [],
-      parent,
-    });
-    project.nodeMap.set(cell.id, cell);
-    return cell;
-  }
+export function cellFromSerialized(
+  project: Project,
+  nodeMap: SeralizedNodeMap,
+  serialized: SerializedCell,
+  parent: Page,
+) {
+  const cell = new Cell({
+    ...serialized,
+    // children: serialized.children.map((id) => {
+    //   const node = expectSerializedNode(nodeMap.get(id), "cell");
+    //   const cell = Cell.fromSerialized(project, nodeMap, node);
+    //   return cell;
+    // }),
+    path: Path.fromSerialized(project, nodeMap, serialized.path),
+    children: [],
+    parent,
+  });
+  project.nodeMap.set(cell.id, cell);
+  return cell;
 }
 
 export type Node = Page | Cell;
@@ -206,7 +240,7 @@ export class Project {
     this.pages =
       serialized?.pages.map((id) => {
         const node = expectSerializedNode(nodeMap.get(id), "page");
-        const page = Page.fromSerialized(this, nodeMap, node);
+        const page = pageFromSerialized(this, nodeMap, node);
 
         return page;
       }) ?? [];

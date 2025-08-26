@@ -1,8 +1,16 @@
 import { store } from "./App.js";
 import { assert, expect } from "../utils/assert.js";
-import { Cell, Page, Project } from "../project/Project.js";
+import {
+  Cell,
+  createCell,
+  createPage,
+  Fill,
+  Project,
+  Node,
+} from "../project/Project.js";
 import { insertAtIndex } from "../utils/array.js";
 import { vec2Add, vec2Mult } from "../utils/vec2.js";
+import { PropertySetter } from "../utils/types.js";
 
 const requireProject = () =>
   expect(store.getState().project, "Project not found");
@@ -33,6 +41,7 @@ const uiUpdated = requestRender; // TODO: Only needs to update chrome, not the r
 const projectUpdated = requestRender;
 
 export function subscribeToChanges(listener: (project: Project) => void) {
+  console.log("change!");
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -91,34 +100,38 @@ export const setPageDimensions = (width: number, height: number) => {
   );
 };
 
-export const setPageFillColor = (
-  pageId: string,
+const requireNodeWithFills = (nodeId: string) => {
+  const node = requireNode(nodeId);
+  assert("fills" in node, "Node does not have fills");
+  return node as Extract<Node, { fills: Fill[] }>;
+};
+
+const requireNodeFill = (nodeId: string, fillIndex: number) => {
+  const node = requireNodeWithFills(nodeId);
+  const fill = expect(node.fills.at(fillIndex), "Fill not found");
+  assert(fill.type === "color", "Not a color fill");
+  return fill;
+};
+
+export const setNodeFillAtIndex = (
+  nodeId: string,
   fillIndex: number,
-  color: string,
+  fill: PropertySetter<Fill>,
 ) => {
   const { history } = store.getState();
-  const originalColor = expect(
-    requirePage(pageId).fills.at(fillIndex),
-    "Fill not found",
-  ).value;
+  const originalFill = requireNodeFill(nodeId, fillIndex);
   history.add(
     history.actionSet(
       () => {
-        expect(
-          requirePage(pageId).fills.at(fillIndex),
-          "Fill not found",
-        ).value = color;
+        requireNodeWithFills(nodeId).setFill(fillIndex, fill);
         projectUpdated();
       },
       () => {
-        expect(
-          requirePage(pageId).fills.at(fillIndex),
-          "Fill not found",
-        ).value = originalColor;
+        requireNodeWithFills(nodeId).setFill(fillIndex, originalFill);
         projectUpdated();
       },
       {
-        key: `page-${pageId}-fill-${fillIndex}`,
+        key: `node-${nodeId}-fill-${fillIndex}`,
       },
     ),
   );
@@ -130,7 +143,7 @@ export const addPage = () => {
     width: 1080,
     height: 1080,
   };
-  const page = Page.create({
+  const page = createPage({
     width: existingPage.width,
     height: existingPage.height,
   });
@@ -208,7 +221,7 @@ export function addCellToPage(pageId: string) {
   const { history } = store.getState();
   const project = requireProject();
   const page = requirePage(pageId);
-  const cell = Cell.create({ parent: page });
+  const cell = createCell({ parent: page });
 
   history.add(
     history.actionSet(
@@ -276,3 +289,8 @@ export const translateCell = (
     ),
   );
 };
+
+function requireNode(nodeId: string) {
+  const project = requireProject();
+  return expect(project.nodeMap.get(nodeId), "Node not found");
+}

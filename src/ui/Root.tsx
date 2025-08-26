@@ -6,6 +6,7 @@ import { SplitPane } from "@rexxars/react-split-pane";
 import { Inspector } from "./Inspector.js";
 import { useStore } from "zustand";
 import { subscribeToChanges } from "../app/projectActions.js";
+import { ProjectContext, useProjectContextValue } from "./ProjectContext.js";
 
 export function Root() {
   const project = useStore(store, (state) => state.project);
@@ -31,6 +32,7 @@ export function Root() {
   }, [onProjectStateChange]);
 
   useSplitPaneStyles();
+  const projectContextValue = useProjectContextValue();
 
   return (
     <SplitPane
@@ -49,7 +51,9 @@ export function Root() {
         <h1>Comic Layout!!!</h1>
       )}
       <div>
-        <Inspector />
+        <ProjectContext.Provider value={projectContextValue}>
+          <Inspector />
+        </ProjectContext.Provider>
       </div>
     </SplitPane>
   );

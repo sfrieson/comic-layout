@@ -10,7 +10,7 @@ import { Cell, Page } from "../../project/Project.js";
 import { aabbFromPoints } from "../../utils/viewportUtils.js";
 import { useDrag } from "../hooks.js";
 import type { scaleCell, translateCell } from "../../app/projectActions.js";
-import { vec2Add, vec2Div, vec2Mult, vec2Sub } from "../../utils/vec2.js";
+import { vec2Div, vec2Mult } from "../../utils/vec2.js";
 
 export interface PageData {
   type: "page";

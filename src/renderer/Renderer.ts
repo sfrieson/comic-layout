@@ -57,7 +57,9 @@ function renderCell(renderInfo: RenderInfo, cell: Cell) {
     switch (fill.type) {
       case "color":
         context.fillStyle = fill.value;
+        context.globalAlpha = fill.opacity;
         context.fill(path2d);
+        context.globalAlpha = 1;
         break;
     }
   }

@@ -4,15 +4,18 @@ body {
   overscroll-behavior: none;
 }
 
-input {
-  @apply w-full;
-  @apply border-2 border-gray-300;
-  @apply rounded-md;
-  @apply p-2;
-  @apply text-sm;
-  @apply text-gray-800;
-  @apply bg-white;
-  @apply focus:outline-none;
-  @apply focus:ring-2;
-  @apply focus:ring-blue-500;
+@layer theme {
+  input {
+    @apply w-full;
+    @apply border-2 border-gray-300;
+    @apply rounded-md;
+    @apply p-2;
+    @apply text-sm;
+    @apply text-gray-800;
+    @apply bg-white;
+    @apply focus:outline-none;
+    @apply focus:ring-2;
+    @apply focus:ring-blue-500;
+    min-width: 0;
+  }
 }
