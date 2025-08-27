@@ -109,17 +109,27 @@ const requireNodeWithFills = (nodeId: string) => {
 const requireNodeFill = (nodeId: string, fillIndex: number) => {
   const node = requireNodeWithFills(nodeId);
   const fill = expect(node.fills.at(fillIndex), "Fill not found");
-  assert(fill.type === "color", "Not a color fill");
   return fill;
 };
 
-export const setNodeFillAtIndex = (
+const requireNodeFillOfType = (
   nodeId: string,
+  fillType: Fill["type"],
   fillIndex: number,
-  fill: PropertySetter<Fill>,
+) => {
+  const fill = requireNodeFill(nodeId, fillIndex);
+  assert(fill.type === fillType, "Not a fill of type " + fillType);
+  return fill;
+};
+
+export const setNodeFillAtIndex = <T extends Fill["type"]>(
+  nodeId: string,
+  fillType: T,
+  fillIndex: number,
+  fill: PropertySetter<Extract<Fill, { type: T }>>,
 ) => {
   const { history } = store.getState();
-  const originalFill = requireNodeFill(nodeId, fillIndex);
+  const originalFill = requireNodeFillOfType(nodeId, fillType, fillIndex);
   history.add(
     history.actionSet(
       () => {
@@ -132,6 +142,63 @@ export const setNodeFillAtIndex = (
       },
       {
         key: `node-${nodeId}-fill-${fillIndex}`,
+      },
+    ),
+  );
+};
+
+export function setNodeOpacityAtIndex(
+  nodeId: string,
+  fillIndex: number,
+  opacity: number,
+) {
+  const { history } = store.getState();
+  const originalOpacity = requireNodeFill(nodeId, fillIndex).opacity;
+
+  history.add(
+    history.actionSet(
+      () => {
+        requireNodeFill(nodeId, fillIndex).opacity = opacity;
+        projectUpdated();
+      },
+      () => {
+        requireNodeFill(nodeId, fillIndex).opacity = originalOpacity;
+        projectUpdated();
+      },
+    ),
+  );
+}
+
+export const addNodeFill = (nodeId: string) => {
+  const { history } = store.getState();
+  const node = requireNodeWithFills(nodeId);
+  history.add(
+    history.actionSet(
+      () => {
+        node.addFill({ type: "color", value: "#dddddd", opacity: 1 });
+        projectUpdated();
+      },
+      () => {
+        node.removeFill(node.fills.length - 1);
+        projectUpdated();
+      },
+    ),
+  );
+};
+
+export const removeNodeFillAtIndex = (nodeId: string, fillIndex: number) => {
+  const { history } = store.getState();
+  const fill = { ...requireNodeFill(nodeId, fillIndex) };
+
+  history.add(
+    history.actionSet(
+      () => {
+        requireNodeWithFills(nodeId).removeFill(fillIndex);
+        projectUpdated();
+      },
+      () => {
+        requireNodeWithFills(nodeId).addFill(fill, fillIndex);
+        projectUpdated();
       },
     ),
   );

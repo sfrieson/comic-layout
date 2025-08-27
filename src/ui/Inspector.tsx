@@ -2,11 +2,14 @@ import { useStore } from "zustand";
 import { store } from "../app/App.js";
 import {
   addCellToPage,
+  addNodeFill,
   addPage,
   removeCell,
+  removeNodeFillAtIndex,
   removePage,
   setName,
   setNodeFillAtIndex,
+  setNodeOpacityAtIndex,
   setPageDimensions,
 } from "../app/projectActions.js";
 import { useRecentFiles } from "../app/hooks.js";
@@ -34,17 +37,7 @@ function CellInspector({ node }: { node: Cell }) {
   return (
     <div>
       <p>Cell Inspector</p>
-      <div>
-        <h3>Fills</h3>
-        {node.fills.map((fill, i) => (
-          <FillEditor
-            key={`fill-${i}-${fill.type}`}
-            {...fill}
-            nodeId={node.id}
-            i={i}
-          />
-        ))}
-      </div>
+      <NodeFillsEditor nodeId={node.id} />
     </div>
   );
 }
@@ -158,23 +151,33 @@ function PageInspector() {
     <div>
       <p>Page Inspector</p>
       <button onClick={() => removePage(page.id)}>Remove Page</button>
-      <div>
-        <label>
-          Background Fill
-          <div>
-            {page.fills.map((fill, i) => (
-              <FillEditor
-                key={`fill-${i}-${fill.type}`}
-                {...fill}
-                nodeId={page.id}
-                i={i}
-              />
-            ))}
-          </div>
-        </label>
-      </div>
+      <NodeFillsEditor nodeId={page.id} />
 
       <button onClick={() => addCellToPage(page.id)}>Add cell</button>
+    </div>
+  );
+}
+
+function NodeFillsEditor({ nodeId }: { nodeId: string }) {
+  const fills = useStore(store, (s) => s.project?.nodeMap.get(nodeId)?.fills);
+  assert(fills, "Node has no fills");
+
+  return (
+    <div>
+      <div className="flex gap-2 justify-between">
+        <p>Fills</p>
+        <button onClick={() => addNodeFill(nodeId)}>Add Fill</button>
+      </div>
+      <div>
+        {fills.map((fill, i) => (
+          <FillEditor
+            key={`fill-${i}-${fill.type}`}
+            {...fill}
+            nodeId={nodeId}
+            i={i}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -188,20 +191,51 @@ function FillEditor({
 }: Fill & { i: number; nodeId: string }) {
   if (type === "color") {
     return (
-      <ColorFillEditor value={value} opacity={opacity} nodeId={nodeId} i={i} />
+      <CommonFillEditor nodeId={nodeId} i={i} opacity={opacity}>
+        <ColorFillEditor value={value} nodeId={nodeId} i={i} />
+      </CommonFillEditor>
     );
   }
   return null;
 }
 
-function ColorFillEditor({
-  value,
+function CommonFillEditor({
+  children,
   nodeId,
   opacity,
   i,
 }: {
-  value: string;
+  children: React.ReactNode;
+  nodeId: string;
   opacity: number;
+  i: number;
+}) {
+  return (
+    <div className="flex gap-2 h-8">
+      {children}
+      <div className="h-full">
+        <input
+          type="number"
+          className="h-full p-0"
+          style={{ width: "5ch" }}
+          name="opacity"
+          value={opacity * 100}
+          onChange={(e) => {
+            setNodeOpacityAtIndex(nodeId, i, e.target.valueAsNumber / 100);
+          }}
+        />
+      </div>
+      <button onClick={() => removeNodeFillAtIndex(nodeId, i)}>–</button>
+    </div>
+  );
+}
+
+function ColorFillEditor({
+  value,
+  nodeId,
+  i,
+}: {
+  value: string;
   nodeId: string;
   i: number;
 }) {
@@ -214,7 +248,7 @@ function ColorFillEditor({
           name="color"
           value={value}
           onChange={(e) => {
-            setNodeFillAtIndex(nodeId, i, (fill) => ({
+            setNodeFillAtIndex(nodeId, "color", i, (fill) => ({
               ...fill,
               value: e.target.value,
             }));
@@ -229,7 +263,7 @@ function ColorFillEditor({
             name="color"
             defaultValue={value}
             onBlur={(e) => {
-              setNodeFillAtIndex(nodeId, i, (fill) => ({
+              setNodeFillAtIndex(nodeId, "color", i, (fill) => ({
                 ...fill,
                 value: e.target.value,
               }));
@@ -238,21 +272,6 @@ function ColorFillEditor({
               if (e.key === "Enter") {
                 e.currentTarget.blur();
               }
-            }}
-          />
-        </div>
-        <div className="h-full w-full">
-          <input
-            type="number"
-            className="h-full w-full p-0"
-            name="opacity"
-            value={opacity * 100}
-            onChange={(e) => {
-              console.log(e.target.valueAsNumber / 100);
-              setNodeFillAtIndex(nodeId, i, (fill) => ({
-                ...fill,
-                opacity: e.target.valueAsNumber / 100,
-              }));
             }}
           />
         </div>

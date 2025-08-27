@@ -18,8 +18,9 @@ interface ColorFill {
 
 interface ImageFill {
   type: "image";
-  value: string;
+  value: FileSystemFileHandle | null;
   opacity: number;
+  position: "cover"; // | "contain" | { x: number; y: number; width: number; height: number };
 }
 
 export type Fill = ColorFill | ImageFill;
@@ -50,6 +51,17 @@ class WithFills {
   removeFill(index: number) {
     assert(this.fills[index], "Fill not found");
     this.fills.splice(index, 1);
+  }
+
+  static createColorFill(value: string = "#ffffff", opacity: number = 1) {
+    return { type: "color" as const, value, opacity };
+  }
+
+  static createImageFill(
+    value: FileSystemFileHandle | null = null,
+    opacity: number = 1,
+  ) {
+    return { type: "image" as const, value, opacity, position: "cover" };
   }
 }
 
@@ -88,7 +100,7 @@ export function createPage(opt: {
   return new Page({
     ...opt,
     id: uuid(),
-    fills: opt.fills ?? [{ type: "color", value: "#ffffff", opacity: 1 }],
+    fills: opt.fills ?? [WithFills.createColorFill("#ffffff")],
     children: opt.children ?? [],
   });
 }
@@ -147,7 +159,7 @@ export function createCell(opt: {
   return new Cell({
     id: uuid(),
     ...opt,
-    fills: opt.fills ?? [{ type: "color", value: "#dddddd", opacity: 1 }],
+    fills: opt.fills ?? [WithFills.createColorFill("#dddddd")],
     children: opt.children ?? [],
     path:
       opt.path ??
