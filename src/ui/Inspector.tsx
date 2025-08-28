@@ -14,6 +14,7 @@ import {
   setNodeOpacityAtIndex,
   setPageDimensions,
   translateCell,
+  exportProject,
 } from "../app/projectActions.js";
 
 import { projectAssets, useRecentFiles } from "../app/hooks.js";
@@ -128,6 +129,8 @@ function LoadedProjectInspector() {
 
   return (
     <div className="p-2">
+      <button onClick={() => exportProject()}>Export</button>
+      <hr />
       <label>
         Name
         <input

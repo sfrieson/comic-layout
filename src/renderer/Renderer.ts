@@ -22,7 +22,6 @@ export type RenderCallbackOptions =
 export type RenderCallback = (options: RenderCallbackOptions) => void;
 
 export interface RenderInfo {
-  screen: (n: number) => number;
   context: CanvasRenderingContext2D;
   project: Project;
   onRendered?: RenderCallback;

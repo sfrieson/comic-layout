@@ -65,3 +65,22 @@ export async function writeFile(
   await writable.write(data);
   await writable.close();
 }
+
+export async function loadImageFromURL(url: string) {
+  const { promise, resolve, reject } =
+    Promise.withResolvers<HTMLImageElement>();
+  const image = new Image();
+  image.src = url;
+  image.onload = () => {
+    resolve(image);
+  };
+  image.onerror = reject;
+  return promise;
+}
+
+export function downloadURL(url: string, name: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+}

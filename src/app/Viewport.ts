@@ -11,6 +11,7 @@ import { nodeToBB, screenToWorld } from "../utils/viewportUtils.js";
 import { scaleCell, translateCell } from "./projectActions.js";
 import { WithCleanup } from "../utils/Composition.js";
 import { projectAssetsTable } from "./db.js";
+import { loadImageFromURL } from "../utils/file.js";
 
 export class Viewport extends WithCleanup {
   #root: HTMLElement;
@@ -89,24 +90,21 @@ export class Viewport extends WithCleanup {
     if (this.#imageCacheLoading.has(assetId)) return;
     try {
       this.#imageCacheLoading.add(assetId);
-      const image = new Image();
       const asset = await projectAssetsTable.getAsset(assetId);
       const urlObj = URL.createObjectURL(asset);
-      image.src = urlObj;
       this.addCleanup(() => {
         URL.revokeObjectURL(urlObj);
         this.#imageCache.delete(assetId);
       });
+      const image = await loadImageFromURL(urlObj);
+      image.src = urlObj;
 
-      image.onload = () => {
-        this.#imageCache.set(assetId, image);
-        requestAnimationFrame(() => {
-          this.#queueRender();
-        });
-      };
-      image.onerror = () => {
-        console.error("error loading", assetId);
-      };
+      this.#imageCache.set(assetId, image);
+      requestAnimationFrame(() => {
+        this.#queueRender();
+      });
+    } catch (e) {
+      console.error("error loading", assetId);
     } finally {
       this.#imageCacheLoading.delete(assetId);
     }

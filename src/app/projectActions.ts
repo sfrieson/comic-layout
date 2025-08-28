@@ -12,6 +12,7 @@ import {
 import { insertAtIndex } from "../utils/array.js";
 import { vec2Add, vec2Mult } from "../utils/vec2.js";
 import { PropertySetter } from "../utils/types.js";
+import { exportPages } from "./Exporter.js";
 
 const requireProject = () =>
   expect(store.getState().project, "Project not found");
@@ -398,4 +399,9 @@ export const translateCell = (
 function requireNode(nodeId: string) {
   const project = requireProject();
   return expect(project.nodeMap.get(nodeId), "Node not found");
+}
+
+export function exportProject() {
+  const project = requireProject();
+  exportPages(project);
 }
