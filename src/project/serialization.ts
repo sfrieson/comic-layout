@@ -82,25 +82,11 @@ export function serializeProject(project: Project): SerializedProject {
   return {
     pages: project.pages.map((page) => page.id),
     nodes,
+    images: Array.from(project.images),
     meta: {
       ...project.meta,
       updatedAt: new Date().toISOString(),
       version: CURRENT_SERIALIZATION_VERSION,
     },
   };
-}
-
-export function assertSerialzedNode<T extends SerializedNode["type"]>(
-  node: SerializedNode | null | undefined,
-  type: T,
-): asserts node is Extract<SerializedNode, { type: T }> {
-  assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
-}
-
-export function expectSerializedNode<T extends SerializedNode["type"]>(
-  node: SerializedNode | null | undefined,
-  type: T,
-) {
-  assertSerialzedNode(node, type);
-  return node as Extract<SerializedNode, { type: T }>;
 }

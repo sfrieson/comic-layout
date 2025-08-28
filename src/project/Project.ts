@@ -1,12 +1,12 @@
 import { assert, expect } from "../utils/assert.js";
 import { PropertySetter } from "../utils/types.js";
-import { expectSerializedNode } from "./serialization.js";
 import {
   SerializedCell,
   SerializedNode,
   SerializedPage,
   SerializedProject,
   SerializedPath,
+  SerializedFill,
 } from "./types.js";
 import { v4 as uuid } from "uuid";
 
@@ -16,23 +16,27 @@ interface ColorFill {
   opacity: number;
 }
 
-interface ImageFill {
+interface IDBImageFill {
   type: "image";
-  value: FileSystemFileHandle | null;
+  value: number | null; // IDBValidKey
   opacity: number;
-  position: "cover"; // | "contain" | { x: number; y: number; width: number; height: number };
+  position:
+    | "cover"
+    | "stretch"
+    | "contain"
+    | { x: number; y: number; width: number; height: number };
 }
 
-export type Fill = ColorFill | ImageFill;
+export type Fill = ColorFill | IDBImageFill;
 
-class WithFills {
+export class WithFills {
   fills: Fill[];
 
   constructor(opt: { fills: Fill[] }) {
     this.fills = opt.fills;
   }
 
-  setFill(index: number, fill: PropertySetter<Fill>) {
+  setFill<F extends Fill>(index: number, fill: PropertySetter<F, Fill>) {
     const currentFill = expect(this.fills[index], "Fill not found");
     if (typeof fill === "function") {
       this.fills[index] = fill(currentFill);
@@ -58,11 +62,23 @@ class WithFills {
   }
 
   static createImageFill(
-    value: FileSystemFileHandle | null = null,
+    value: number | null = null,
     opacity: number = 1,
-  ) {
+  ): IDBImageFill {
     return { type: "image" as const, value, opacity, position: "cover" };
   }
+}
+
+function fillsFromSerialized(fills: SerializedFill[]) {
+  return fills.map((fill) => {
+    if (fill.type === "color") {
+      return WithFills.createColorFill(fill.value, fill.opacity);
+    }
+    if (fill.type === "image") {
+      return WithFills.createImageFill(fill.value, fill.opacity);
+    }
+    throw new Error(`Unknown fill type: ${(fill as Fill).type}`);
+  });
 }
 
 type SeralizedNodeMap = Map<string, SerializedNode>;
@@ -113,6 +129,7 @@ export function pageFromSerialized(
   const page = new Page({
     ...serialized,
     children: [],
+    fills: fillsFromSerialized(serialized.fills),
   });
   project.nodeMap.set(page.id, page);
   serialized.children.forEach((id) => {
@@ -190,6 +207,7 @@ export function cellFromSerialized(
     //   return cell;
     // }),
     path: Path.fromSerialized(project, nodeMap, serialized.path),
+    fills: fillsFromSerialized(serialized.fills),
     children: [],
     parent,
   });
@@ -238,6 +256,7 @@ export class Path {
 export class Project {
   nodeMap: Map<string, Node> = new Map();
   pages: Page[];
+  images: Set<number>;
   meta: {
     name: string;
     createdAt: string;
@@ -257,6 +276,7 @@ export class Project {
         return page;
       }) ?? [];
 
+    this.images = new Set(serialized?.images ?? []);
     this.meta = {
       name: serialized?.meta?.name ?? "New Project",
       createdAt: serialized?.meta?.createdAt ?? new Date().toISOString(),
@@ -303,4 +323,19 @@ export function expectNodeType<T extends Node["type"]>(
     node.type === type,
     `Node ${node.id} is not a ${type}`,
   ) as unknown as Extract<Node, { type: T }>;
+}
+
+function assertSerialzedNode<T extends SerializedNode["type"]>(
+  node: SerializedNode | null | undefined,
+  type: T,
+): asserts node is Extract<SerializedNode, { type: T }> {
+  assert(node?.type === type, `Node ${node?.id} is not a ${type}`);
+}
+
+function expectSerializedNode<T extends SerializedNode["type"]>(
+  node: SerializedNode | null | undefined,
+  type: T,
+) {
+  assertSerialzedNode(node, type);
+  return node as Extract<SerializedNode, { type: T }>;
 }

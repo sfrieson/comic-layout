@@ -41,6 +41,20 @@ export default defineConfig([
     // },
   },
   pluginReactHooks.configs["recommended-latest"],
+  {
+    files: ["**/*.{js,jsx,ts,tsx}"],
+    plugins: {
+      "react-hooks": pluginReactHooks,
+    },
+    rules: {
+      "react-hooks/exhaustive-deps": [
+        "warn",
+        {
+          additionalHooks: "(useLatestRef)",
+        },
+      ],
+    },
+  },
   pluginReact.configs.flat["jsx-runtime"],
   reactRefresh.configs.vite,
   eslintConfigPrettier,

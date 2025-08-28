@@ -97,9 +97,13 @@ export const store = createStore(
           const timeout = setTimeout(saveNow, 10_000);
           window.addEventListener("beforeunload", saveNow);
         },
-        setZoom: (zoom: number, pan: { x: number; y: number }) => {
+        setZoom: (zoom: number, pan?: { x: number; y: number }) => {
           if (zoom < 0.01 || zoom > 32) return;
-          setUI({ zoom: Math.min(Math.max(0.01, zoom), 32), pan });
+          if (pan) {
+            setUI({ zoom: Math.min(Math.max(0.01, zoom), 32), pan });
+          } else {
+            setUI({ zoom: Math.min(Math.max(0.01, zoom), 32) });
+          }
         },
         setPan: (pan: { x: number; y: number }) => {
           setUI({ pan: { x: Math.round(pan.x), y: Math.round(pan.y) } });
@@ -114,3 +118,19 @@ export const store = createStore(
     },
   ),
 );
+
+// if (import.meta.hot) {
+//   let viewport: Viewport | null = null;
+//   let project: Project | null = null;
+//   import.meta.hot.dispose(() => {
+//     viewport = store.getState().viewport;
+//     project = store.getState().project;
+//   });
+//   import.meta.hot.accept(() => {
+//     console.log("App changed");
+//     store.setState({
+//       viewport,
+//       project,
+//     });
+//   });
+// }

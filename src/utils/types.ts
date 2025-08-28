@@ -1,1 +1,3 @@
-export type PropertySetter<T> = T | ((value: T) => T);
+export type PropertySetter<NextType, CurrentType = NextType> =
+  | NextType
+  | ((value: CurrentType) => NextType);

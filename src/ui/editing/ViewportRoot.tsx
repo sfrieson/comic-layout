@@ -50,7 +50,7 @@ export function RootSVG({
 
   useEffect(() => {
     if (!svg) return;
-    svg.addEventListener("wheel", onWheel);
+    svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
   }, [svg, onWheel]);
 

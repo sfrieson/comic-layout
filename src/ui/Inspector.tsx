@@ -7,33 +7,65 @@ import {
   removeCell,
   removeNodeFillAtIndex,
   removePage,
+  saveImageToProject,
   setName,
   setNodeFillAtIndex,
+  setNodeFillToType,
   setNodeOpacityAtIndex,
   setPageDimensions,
+  translateCell,
 } from "../app/projectActions.js";
-import { useRecentFiles } from "../app/hooks.js";
+
+import { projectAssets, useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
 import { Cell, Fill } from "../project/Project.js";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useProject } from "./ProjectContext.js";
+import { useEffect, useMemo, useState } from "react";
+import { useLatestRef } from "../utils/hooks.js";
 
 export function Inspector() {
   const selection = useStore(store, (s) => s.ui.selection);
-  if (!selection.size) return <ProjectInspector />;
-  if (selection.size > 1) {
-    return <div>Multi-Selection Inspector</div>;
-  }
+  return (
+    <div className="p-2">
+      {(() => {
+        if (!selection.size) return <ProjectInspector />;
+        if (selection.size > 1) {
+          return <div>Multi-Selection Inspector</div>;
+        }
 
-  const node = selection.values().next().value!;
-  if (node.type === "cell") {
-    return <CellInspector node={node} />;
-  }
-  return <div>Selection Inspector</div>;
+        const node = selection.values().next().value!;
+        if (node.type === "cell") {
+          return <CellInspector node={node} />;
+        }
+        return <div>Selection Inspector</div>;
+      })()}
+    </div>
+  );
 }
 
 function CellInspector({ node }: { node: Cell }) {
   useHotkeys("backspace", () => removeCell(node));
+  useHotkeys(
+    [
+      "arrowup",
+      "arrowdown",
+      "arrowleft",
+      "arrowright",
+      "shift+arrowup",
+      "shift+arrowdown",
+      "shift+arrowleft",
+      "shift+arrowright",
+    ],
+    (e: KeyboardEvent) => {
+      const dist = 1 * (e.shiftKey ? 10 : 1);
+      const delta = {
+        x: e.key === "ArrowRight" ? dist : e.key === "ArrowLeft" ? -dist : 0,
+        y: e.key === "ArrowDown" ? dist : e.key === "ArrowUp" ? -dist : 0,
+      };
+      translateCell(node.id, delta);
+    },
+  );
   return (
     <div>
       <p>Cell Inspector</p>
@@ -171,7 +203,7 @@ function NodeFillsEditor({ nodeId }: { nodeId: string }) {
       <div>
         {fills.map((fill, i) => (
           <FillEditor
-            key={`fill-${i}-${fill.type}`}
+            key={`node-${nodeId}-fill-${i}-${fill.type}`}
             {...fill}
             nodeId={nodeId}
             i={i}
@@ -196,6 +228,13 @@ function FillEditor({
       </CommonFillEditor>
     );
   }
+  if (type === "image") {
+    return (
+      <CommonFillEditor nodeId={nodeId} i={i} opacity={opacity}>
+        <ImageFillEditor value={value} nodeId={nodeId} i={i} />
+      </CommonFillEditor>
+    );
+  }
   return null;
 }
 
@@ -210,6 +249,16 @@ function CommonFillEditor({
   opacity: number;
   i: number;
 }) {
+  const type = useStore(
+    store,
+    (s) => s.project?.nodeMap.get(nodeId)?.fills.at(i)?.type,
+  );
+  const [isEditing, setIsEditing] = useState(false);
+
+  function updateType(e: React.ChangeEvent<HTMLSelectElement>) {
+    setNodeFillToType(nodeId, i, e.target.value as Fill["type"]);
+  }
+
   return (
     <div className="flex gap-2 h-8">
       {children}
@@ -226,6 +275,25 @@ function CommonFillEditor({
         />
       </div>
       <button onClick={() => removeNodeFillAtIndex(nodeId, i)}>–</button>
+      <button onClick={() => setIsEditing(!isEditing)}>⚙︎</button>
+      {isEditing && (
+        <Popover className="absolute inset-0 bg-gray-100">
+          <h4>Fill Editor</h4>
+          <div>
+            <label>
+              Type
+              <select
+                name="type"
+                defaultValue={type ?? "color"}
+                onChange={updateType}
+              >
+                <option value="color">Color</option>
+                <option value="image">Image</option>
+              </select>
+            </label>
+          </div>
+        </Popover>
+      )}
     </div>
   );
 }
@@ -276,6 +344,89 @@ function ColorFillEditor({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function ImageFillEditor({
+  value,
+  nodeId,
+  i,
+}: {
+  value: number | null;
+  nodeId: string;
+  i: number;
+}) {
+  const { save } = projectAssets.useSaveAsset();
+  const { asset } = projectAssets.useGetAsset(value);
+  async function saveFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file?.type.startsWith("image/")) return;
+    save({
+      asset: file,
+      onSuccess: (assetId) => {
+        if (typeof assetId !== "number") return;
+        saveImageToProject(assetId);
+        setNodeFillAtIndex(nodeId, "image", i, (fill) => ({
+          ...fill,
+          value: assetId,
+        }));
+      },
+    });
+  }
+  const dataUrl = useMemo(() => {
+    if (!asset) return null;
+    return URL.createObjectURL(asset);
+  }, [asset]);
+  return (
+    <div className="flex gap-2 h-8 w-full">
+      <div className="h-full flex gap-2">
+        {dataUrl && <img src={dataUrl} alt="Asset" />}
+        <input type="file" accept="image/*" onChange={saveFile} />
+      </div>
+    </div>
+  );
+}
+
+declare global {
+  interface HTMLElementEventMap {
+    toggle: ToggleEvent;
+  }
+}
+
+function Popover({
+  children,
+  onClose,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  onClose?: () => void;
+}) {
+  const [ref, setRef] = useState<HTMLDivElement | null>(null);
+  const latestOnClose = useLatestRef(onClose);
+  useEffect(() => {
+    if (!ref) return;
+    ref.showPopover();
+    const onToggle = (e: ToggleEvent) => {
+      if (e.newState === "closed") {
+        latestOnClose.current?.();
+      }
+    };
+    ref.addEventListener("toggle", onToggle);
+    return () => {
+      ref.removeEventListener("toggle", onToggle);
+    };
+  }, [ref]);
+
+  return (
+    <div
+      ref={setRef}
+      popover="auto"
+      className={
+        "p-2 bg-gray-100 border border-gray-300 popover:bg-gray-800 m-auto"
+      }
+    >
+      {children}
     </div>
   );
 }

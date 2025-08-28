@@ -1,0 +1,39 @@
+---
+description: Style guide for JavaScript and TypeScript files
+globs: *.js,*.ts,*.tsx
+alwaysApply: false
+---
+
+## Debugging
+
+- When logging variables, prefer the concise, extendable style `console.log({ foo })`
+- If variables need to be renamed for clarity or for properties, still use an object. Example: `console.log({ 'foo.bar': foo.bar })`
+- Do no use the style `console.log("foo", foo)`
+
+## Edge-case handling
+
+Follow the advice of "left-align the happy path." This means that if there is an edge-case, an error-case, or anything else invalid, handle that first in a conditional block if appropriate before moving on to the happy path case, which is indented in a block. Since it's not indented in the block it's "left-aligned." Examples:
+
+Do this:
+
+```ts
+function reverseString(input: string) {
+  if (!input) {
+    throw new Error("No input found");
+  }
+
+  return input.split("").reverse().join("");
+}
+```
+
+Don't do this
+
+```ts
+function reverseString(input: string) {
+  if (input) {
+    return input.split("").reverse().join("");
+  } else {
+    throw new Error("No input found");
+  }
+}
+```

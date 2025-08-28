@@ -9,14 +9,17 @@ import { RootSVG, Data as UIData } from "../ui/editing/ViewportRoot.js";
 import { ExtractState } from "zustand";
 import { nodeToBB, screenToWorld } from "../utils/viewportUtils.js";
 import { scaleCell, translateCell } from "./projectActions.js";
+import { WithCleanup } from "../utils/Composition.js";
+import { projectAssetsTable } from "./db.js";
 
-export class Viewport {
+export class Viewport extends WithCleanup {
   #root: HTMLElement;
   #renderer: ViewportRenderer;
   #canvas: HTMLCanvasElement;
   #svgContainer: HTMLDivElement;
 
   constructor(root: HTMLElement) {
+    super();
     this.#root = root;
     this.#canvas = document.createElement("canvas");
     this.#canvas.classList.add("w-full", "h-full");
@@ -32,6 +35,10 @@ export class Viewport {
     this.#root.appendChild(this.#svgContainer);
     this.#renderer = new ViewportRenderer(this.#canvas, this.#svgContainer);
 
+    this.addCleanup(() => {
+      this.#renderer.destroy();
+    });
+
     this.#setCanvasSize();
 
     this.#setCanvasListeners();
@@ -39,6 +46,16 @@ export class Viewport {
     store.subscribe((state) => {
       this.#setUIStateListener(state.ui);
     });
+
+    if (import.meta.hot) {
+      import.meta.hot.accept("../renderer/Renderer.ts", (e) => {
+        this.render();
+      });
+    }
+  }
+
+  destroy() {
+    this.cleanup();
   }
 
   #previousUIState: unknown;
@@ -65,6 +82,36 @@ export class Viewport {
     this.#render(); // render immediately because changing canvas sizes clears the canvas
   }
 
+  #imageCacheLoading = new Set<number>();
+  #imageCache = new Map<number, HTMLImageElement>();
+  async #backgroundLoadImage(assetId: number) {
+    if (this.#imageCache.has(assetId)) return;
+    if (this.#imageCacheLoading.has(assetId)) return;
+    try {
+      this.#imageCacheLoading.add(assetId);
+      const image = new Image();
+      const asset = await projectAssetsTable.getAsset(assetId);
+      const urlObj = URL.createObjectURL(asset);
+      image.src = urlObj;
+      this.addCleanup(() => {
+        URL.revokeObjectURL(urlObj);
+        this.#imageCache.delete(assetId);
+      });
+
+      image.onload = () => {
+        this.#imageCache.set(assetId, image);
+        requestAnimationFrame(() => {
+          this.#queueRender();
+        });
+      };
+      image.onerror = () => {
+        console.error("error loading", assetId);
+      };
+    } finally {
+      this.#imageCacheLoading.delete(assetId);
+    }
+  }
+
   // public render method
   render() {
     this.#queueRender();
@@ -77,12 +124,18 @@ export class Viewport {
     requestAnimationFrame(() => {
       this.#render();
     });
+    const images = store.getState().project?.images ?? [];
+    for (const assetId of images) {
+      this.#backgroundLoadImage(assetId);
+    }
   }
 
   #render() {
     const { ui, project } = store.getState();
     this.#renderRequested = false;
-    this.#renderer.render(expect(project, "Project not found"), ui);
+    this.#renderer.render(expect(project, "Project not found"), ui, {
+      imageMap: this.#imageCache,
+    });
   }
 }
 
@@ -91,7 +144,6 @@ function interactivity() {
     const { project, ui } = store.getState();
     assert(project, "Project not found");
     const worldPos = screenToWorld({ x, y }, ui);
-    console.log(worldPos);
     if (!project.pages.length) return;
 
     const deselect = () => store.getState().setActivePage("");
@@ -131,7 +183,6 @@ function interactivity() {
         child,
         vec2Add(translation, { x: pageTranslation * found.width, y: 0 }),
       );
-      console.log(bb);
       if (!bb) return;
 
       if (bb.contains(worldPos)) {
@@ -179,27 +230,10 @@ function interactivity() {
   };
 }
 
-export type RenderCallbackOptions =
-  | {
-      type: "page";
-      node: Page;
-      renderInfo: {
-        transform: DOMMatrix;
-      };
-    }
-  | {
-      type: "cell";
-      node: Cell;
-      renderInfo: {
-        transform: DOMMatrix;
-        path: Path2D;
-      };
-    };
-
-export type RenderCallback = (options: RenderCallbackOptions) => void;
-
+// supports over HMR
+let _renderPage = renderPage;
 /** Manages rendering the screen of the application, which could be multiple pages as well as UI elements. */
-export class ViewportRenderer {
+class ViewportRenderer {
   #canvas: HTMLCanvasElement;
   #root: ReactDOM.Root;
   ctx: CanvasRenderingContext2D;
@@ -221,7 +255,11 @@ export class ViewportRenderer {
     this.ctx.restore();
   }
 
-  render(project: Project, ui: ExtractState<typeof store>["ui"]) {
+  render(
+    project: Project,
+    ui: ExtractState<typeof store>["ui"],
+    grabBag: { imageMap: Map<number, HTMLImageElement> },
+  ) {
     const context = this.ctx;
     context.fillStyle = ui.canvasColor;
     context.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
@@ -248,6 +286,7 @@ export class ViewportRenderer {
         screen,
         context,
         project,
+        imageMap: grabBag.imageMap,
         onRendered(opt) {
           // decide if clickable
           // decide if it needs UI
@@ -283,7 +322,7 @@ export class ViewportRenderer {
           context.translate(width * i, 0);
           this.#scope(() => {
             // TODO: Mask the area of the page that is not visible in the viewport, (but also support removing the mask)
-            renderPage(renderInfo, page);
+            _renderPage(renderInfo, page);
           });
         });
       }
@@ -305,4 +344,10 @@ export class ViewportRenderer {
       ),
     );
   }
+}
+
+if (import.meta.hot) {
+  import.meta.hot.accept("../renderer/Renderer.ts", (e) => {
+    _renderPage = e?.renderPage;
+  });
 }

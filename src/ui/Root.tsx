@@ -7,12 +7,51 @@ import { Inspector } from "./Inspector.js";
 import { useStore } from "zustand";
 import { subscribeToChanges } from "../app/projectActions.js";
 import { ProjectContext, useProjectContextValue } from "./ProjectContext.js";
+import { Project } from "../project/Project.js";
+import { useHotkeys } from "react-hotkeys-hook";
 
 export function Root() {
   const project = useStore(store, (state) => state.project);
-  const viewport = useStore(store, (state) => state.viewport);
-  const saveProject = useStore(store, (state) => state.saveProject);
+
+  useSplitPaneStyles();
+  const projectContextValue = useProjectContextValue();
+
+  return (
+    <SplitPane
+      split="vertical"
+      minSize={150}
+      defaultSize={300}
+      primary="second"
+    >
+      {project ? <ProjectPane project={project} /> : <EmptyState />}
+      <div>
+        <ProjectContext.Provider value={projectContextValue}>
+          <Inspector />
+        </ProjectContext.Provider>
+      </div>
+    </SplitPane>
+  );
+}
+
+function EmptyState() {
   useAppHotkeys();
+  return (
+    <div>
+      <h1>Comic Layout!!!</h1>
+    </div>
+  );
+}
+
+export function ProjectPane({ project }: { project: Project }) {
+  const viewport = useStore(store, (state) => state.viewport);
+  const setZoom = useStore(store, (state) => state.setZoom);
+  const saveProject = useStore(store, (state) => state.saveProject);
+
+  useHotkeys("meta+1", (e: KeyboardEvent) => {
+    e.preventDefault();
+    setZoom(1);
+  });
+
   const [viewportContainer, setViewportContainer] =
     useState<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -31,31 +70,12 @@ export function Root() {
     return subscribeToChanges(onProjectStateChange);
   }, [onProjectStateChange]);
 
-  useSplitPaneStyles();
-  const projectContextValue = useProjectContextValue();
-
   return (
-    <SplitPane
-      split="vertical"
-      minSize={150}
-      defaultSize={300}
-      primary="second"
-    >
-      {project ? (
-        <div
-          ref={setViewportContainer}
-          id="viewport-container"
-          className="w-full h-full relative"
-        />
-      ) : (
-        <h1>Comic Layout!!!</h1>
-      )}
-      <div>
-        <ProjectContext.Provider value={projectContextValue}>
-          <Inspector />
-        </ProjectContext.Provider>
-      </div>
-    </SplitPane>
+    <div
+      ref={setViewportContainer}
+      id="viewport-container"
+      className="w-full h-full relative"
+    />
   );
 }
 

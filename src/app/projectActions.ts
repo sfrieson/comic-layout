@@ -7,6 +7,7 @@ import {
   Fill,
   Project,
   Node,
+  WithFills,
 } from "../project/Project.js";
 import { insertAtIndex } from "../utils/array.js";
 import { vec2Add, vec2Mult } from "../utils/vec2.js";
@@ -41,7 +42,6 @@ const uiUpdated = requestRender; // TODO: Only needs to update chrome, not the r
 const projectUpdated = requestRender;
 
 export function subscribeToChanges(listener: (project: Project) => void) {
-  console.log("change!");
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -147,6 +147,10 @@ export const setNodeFillAtIndex = <T extends Fill["type"]>(
   );
 };
 
+export function saveImageToProject(assetId: number) {
+  requireProject().images.add(assetId);
+  uiUpdated();
+}
 export function setNodeOpacityAtIndex(
   nodeId: string,
   fillIndex: number,
@@ -163,6 +167,40 @@ export function setNodeOpacityAtIndex(
       },
       () => {
         requireNodeFill(nodeId, fillIndex).opacity = originalOpacity;
+        projectUpdated();
+      },
+    ),
+  );
+}
+
+export function setNodeFillToType(
+  nodeId: string,
+  fillIndex: number,
+  type: Fill["type"],
+) {
+  const { history } = store.getState();
+  const originalFill = requireNodeFill(nodeId, fillIndex);
+  history.add(
+    history.actionSet(
+      () => {
+        let newFill: Fill;
+        switch (type) {
+          case "color":
+            newFill = WithFills.createColorFill();
+            break;
+          case "image":
+            newFill = WithFills.createImageFill();
+            break;
+          default:
+            const _unreachable: never = type;
+            throw new Error("Invalid fill type: " + _unreachable);
+        }
+
+        requireNodeWithFills(nodeId).setFill(fillIndex, newFill);
+        projectUpdated();
+      },
+      () => {
+        requireNodeWithFills(nodeId).setFill(fillIndex, originalFill);
         projectUpdated();
       },
     ),
