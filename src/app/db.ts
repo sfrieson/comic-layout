@@ -1,4 +1,5 @@
 import { openDB } from "idb";
+import z from "zod/v4";
 
 const fileHandlesDB = openDB("file-handles", 2, {
   upgrade(db) {
@@ -11,14 +12,19 @@ const fileHandlesDB = openDB("file-handles", 2, {
   },
 });
 
+// One row with an array of file handles
+const projectFilesSchema = z.array(z.instanceof(FileSystemFileHandle));
 export const projectFilesTable = {
   bulkGetProjects: async function () {
     const db = await fileHandlesDB;
-    return db.getAll("project-files");
+    const row = await db.get("project-files", 1);
+    return projectFilesSchema.parse(row ?? []);
   },
-  putProjectFile: async function (project: FileSystemFileHandle[]) {
+  putProjectFile: async function (
+    projects: FileSystemFileHandle[],
+  ): Promise<IDBValidKey> {
     const db = await fileHandlesDB;
-    return db.put("project-files", project);
+    return db.put("project-files", projects, 1);
   },
 };
 

@@ -103,6 +103,7 @@ function IdleInspector() {
       <button
         onClick={async () => {
           const handle = await openFile();
+          console.log({ handle });
           addRecentFile(handle);
         }}
       >

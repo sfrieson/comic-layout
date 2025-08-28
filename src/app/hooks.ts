@@ -28,9 +28,7 @@ export function useRecentFiles() {
   useEffect(() => {
     async function loadAllHandles() {
       try {
-        const handles = (
-          await projectFilesTable.bulkGetProjects()
-        )[0] as FileSystemFileHandle[];
+        const handles = await projectFilesTable.bulkGetProjects();
         setRecentFiles(handles);
       } catch (error) {
         console.error("Failed to load recent files:", error);
@@ -41,7 +39,9 @@ export function useRecentFiles() {
   }, []);
 
   const addRecentFile = useCallback((handle: FileSystemFileHandle) => {
+    console.log(" addRecentFile");
     setRecentFiles((prev) => {
+      console.log({ prev });
       const seenPaths = new Set([handle.name]);
       const next = [handle];
       for (const handle of prev) {
@@ -54,6 +54,7 @@ export function useRecentFiles() {
           break;
         }
       }
+
       saveHandle(next);
       return next;
     });
