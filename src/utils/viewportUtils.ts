@@ -28,8 +28,17 @@ export function nodeToBB(
   node: Node,
   offset: { x: number; y: number } = { x: 0, y: 0 },
 ) {
+  if (node.type === "page") {
+    return {
+      x: 0,
+      y: 0,
+      width: node.width,
+      height: node.height,
+    };
+  }
   if (node.type === "cell") {
     return aabbFromPoints(node.path.points, offset);
   }
-  return null;
+  const _unreachable: never = node;
+  throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
 }

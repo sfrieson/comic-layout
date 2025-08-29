@@ -29,6 +29,96 @@ interface IDBImageFill {
 
 export type Fill = ColorFill | IDBImageFill;
 
+interface DLLNode<T> {
+  data: T;
+  next: DLLNode<T>;
+  prev: DLLNode<T>;
+}
+export class RenderQueue<T extends object> {
+  name = "RenderQueue";
+  length: number = 0;
+  #end = {
+    data: null as unknown as T,
+    next: null as unknown as DLLNode<T>,
+    prev: null as unknown as DLLNode<T>,
+  };
+
+  constructor(name: string, opt: { data: T[] }) {
+    this.name = name;
+    // this.#head = this.#end;
+    // this.#tail = this.#end;
+    this.length = 0;
+    this.#end.next = this.#end;
+    this.#end.prev = this.#end;
+    opt.data.forEach((item) => this.enqueue(item));
+  }
+
+  enqueue(data: T) {
+    const node: DLLNode<T> = {
+      data,
+      next: this.#end,
+      prev: this.#end.prev,
+    };
+    if (this.#end.next === this.#end) {
+      this.#end.next = node;
+    }
+    this.#end.prev.next = node;
+    this.#end.prev = node;
+    this.length++;
+    return node;
+  }
+
+  removeItem(index: number) {
+    const node = this.#getNode(index);
+    node.prev.next = node.next;
+    node.next.prev = node.prev;
+    this.length--;
+    return node;
+  }
+
+  #getNode(index: number) {
+    let node = this.#end;
+    do {
+      node = node.next;
+      if (node === this.#end) {
+        throw new Error(`${this.name} node ${index} not found`);
+      }
+    } while (--index > -1);
+    return node;
+  }
+
+  updateItem<LocalT extends T>(
+    index: number,
+    nextItem: PropertySetter<LocalT, T>,
+  ) {
+    const node = this.#getNode(index);
+    if (typeof nextItem === "function") {
+      node.data = nextItem(node.data);
+    } else {
+      node.data = nextItem;
+    }
+  }
+
+  // iterators
+  *renderOrder(): IterableIterator<T> {
+    if (this.length === 0) return;
+    let current = this.#end.next;
+    while (current !== this.#end) {
+      yield current.data;
+      current = current.next;
+    }
+  }
+
+  // iterators
+  *listOrder(): IterableIterator<T> {
+    let current = this.#end.prev;
+    while (current !== this.#end) {
+      yield current.data;
+      current = current.prev;
+    }
+  }
+}
+
 export class WithFills {
   fills: Fill[];
 
