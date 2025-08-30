@@ -39,9 +39,7 @@ export function useRecentFiles() {
   }, []);
 
   const addRecentFile = useCallback((handle: FileSystemFileHandle) => {
-    console.log(" addRecentFile");
     setRecentFiles((prev) => {
-      console.log({ prev });
       const seenPaths = new Set([handle.name]);
       const next = [handle];
       for (const handle of prev) {

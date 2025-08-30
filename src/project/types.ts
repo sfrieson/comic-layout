@@ -20,7 +20,17 @@ const serializedIDBImageFillSchema = z.object({
   type: z.literal("image"),
   value: z.number().nullable(),
   opacity: z.number(),
-  position: z.enum(["cover", "contain"]),
+  position: z.union([
+    z.literal("cover"),
+    z.literal("stretch"),
+    z.literal("contain"),
+    z.object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number(),
+      height: z.number(),
+    }),
+  ]),
 });
 export type SerializedIDBImageFill = z.infer<
   typeof serializedIDBImageFillSchema

@@ -29,12 +29,13 @@ export function nodeToBB(
   offset: { x: number; y: number } = { x: 0, y: 0 },
 ) {
   if (node.type === "page") {
-    return {
-      x: 0,
-      y: 0,
-      width: node.width,
-      height: node.height,
-    };
+    return aabbFromPoints(
+      [
+        { x: 0, y: 0 },
+        { x: node.width, y: node.height },
+      ],
+      offset,
+    );
   }
   if (node.type === "cell") {
     return aabbFromPoints(node.path.points, offset);

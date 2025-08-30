@@ -34,6 +34,12 @@ interface DLLNode<T> {
   next: DLLNode<T>;
   prev: DLLNode<T>;
 }
+
+/**
+ *  This is a doubly-linked list where all of its interfaces are created from the
+ *  point of view of the UI, rendering top-down, but also returns a list for the
+ *  renderer which renders buttom-up.
+ */
 export class RenderQueue<T extends object> {
   name = "RenderQueue";
   length: number = 0;
@@ -43,17 +49,17 @@ export class RenderQueue<T extends object> {
     prev: null as unknown as DLLNode<T>,
   };
 
-  constructor(name: string, opt: { data: T[] }) {
+  constructor(name: string, data: T[]) {
     this.name = name;
     // this.#head = this.#end;
     // this.#tail = this.#end;
     this.length = 0;
     this.#end.next = this.#end;
     this.#end.prev = this.#end;
-    opt.data.forEach((item) => this.enqueue(item));
+    data.forEach((item) => this.push(item));
   }
 
-  enqueue(data: T) {
+  push(data: T) {
     const node: DLLNode<T> = {
       data,
       next: this.#end,
@@ -68,15 +74,45 @@ export class RenderQueue<T extends object> {
     return node;
   }
 
-  removeItem(index: number) {
-    const node = this.#getNode(index);
+  removeItem(item: T) {
+    let node = this.#end.next;
+    while (node !== this.#end) {
+      if (node.data === item) {
+        this.#removeNode(node);
+        return node;
+      }
+    }
+    throw new Error(`${this.name} item not found`);
+  }
+
+  removeItemAt(index: number) {
+    const node = this.#nodeAt(index);
     node.prev.next = node.next;
     node.next.prev = node.prev;
     this.length--;
     return node;
   }
 
-  #getNode(index: number) {
+  insertAt(index: number, item: T) {
+    const next = this.#nodeAt(index);
+    const newNode: DLLNode<T> = {
+      data: item,
+      next: next,
+      prev: next.prev,
+    };
+    next.prev.next = newNode;
+    next.prev = newNode;
+    this.length++;
+  }
+
+  #removeNode(node: DLLNode<T>) {
+    node.prev.next = node.next;
+    node.next.prev = node.prev;
+    this.length--;
+    return node;
+  }
+
+  #nodeAt(index: number) {
     let node = this.#end;
     do {
       node = node.next;
@@ -87,11 +123,15 @@ export class RenderQueue<T extends object> {
     return node;
   }
 
+  at(index: number) {
+    return this.#nodeAt(index).data;
+  }
+
   updateItem<LocalT extends T>(
     index: number,
     nextItem: PropertySetter<LocalT, T>,
   ) {
-    const node = this.#getNode(index);
+    const node = this.#nodeAt(index);
     if (typeof nextItem === "function") {
       node.data = nextItem(node.data);
     } else {
@@ -99,86 +139,91 @@ export class RenderQueue<T extends object> {
     }
   }
 
-  // iterators
-  *renderOrder(): IterableIterator<T> {
-    if (this.length === 0) return;
+  toArray(): T[] {
+    const array: T[] = [];
     let current = this.#end.next;
     while (current !== this.#end) {
-      yield current.data;
+      array.push(current.data);
       current = current.next;
     }
+    return array;
   }
 
-  // iterators
-  *listOrder(): IterableIterator<T> {
+  *renderOrder(): IterableIterator<T> {
     let current = this.#end.prev;
     while (current !== this.#end) {
       yield current.data;
       current = current.prev;
     }
   }
+
+  reverseMap<RT>(callback: (item: T, i: number) => RT): RT[] {
+    const array: RT[] = [];
+    let current = this.#end.prev;
+    let counter = this.length - 1;
+    while (current !== this.#end) {
+      array.push(callback(current.data, counter--));
+      current = current.prev;
+    }
+    return array;
+  }
+
+  indexOf(item: T) {
+    let current = this.#end.next;
+    let counter = 0;
+    while (current !== this.#end) {
+      if (current.data === item) {
+        return counter;
+      }
+      current = current.next;
+      counter++;
+    }
+    return -1;
+  }
+  forEach(callback: (item: T, index: number) => void) {
+    let current = this.#end.next;
+    let counter = 0;
+    while (current !== this.#end) {
+      callback(current.data, counter++);
+      current = current.next;
+    }
+  }
 }
 
-export class WithFills {
-  fills: Fill[];
-
-  constructor(opt: { fills: Fill[] }) {
-    this.fills = opt.fills;
-  }
-
-  setFill<F extends Fill>(index: number, fill: PropertySetter<F, Fill>) {
-    const currentFill = expect(this.fills[index], "Fill not found");
-    if (typeof fill === "function") {
-      this.fills[index] = fill(currentFill);
-    } else {
-      this.fills[index] = fill;
-    }
-  }
-  addFill(fill: Fill, at: number | null = null) {
-    if (at === null) {
-      this.fills.push(fill);
-    } else {
-      this.fills.splice(at, 0, fill);
-    }
-  }
-
-  removeFill(index: number) {
-    assert(this.fills[index], "Fill not found");
-    this.fills.splice(index, 1);
-  }
-
-  static createColorFill(value: string = "#ffffff", opacity: number = 1) {
+export const Fills = {
+  createColorFill(value: string = "#ffffff", opacity: number = 1): ColorFill {
     return { type: "color" as const, value, opacity };
-  }
+  },
 
-  static createImageFill(
+  createImageFill(
     value: number | null = null,
     opacity: number = 1,
   ): IDBImageFill {
     return { type: "image" as const, value, opacity, position: "cover" };
-  }
-}
+  },
+};
 
 function fillsFromSerialized(fills: SerializedFill[]) {
   return fills.map((fill) => {
     if (fill.type === "color") {
-      return WithFills.createColorFill(fill.value, fill.opacity);
+      return Fills.createColorFill(fill.value, fill.opacity);
     }
     if (fill.type === "image") {
-      return WithFills.createImageFill(fill.value, fill.opacity);
+      return Fills.createImageFill(fill.value, fill.opacity);
     }
     throw new Error(`Unknown fill type: ${(fill as Fill).type}`);
   });
 }
 
 type SeralizedNodeMap = Map<string, SerializedNode>;
-export class Page extends WithFills {
+export class Page {
   type = "page" as const;
   id: string;
   name: string;
   width: number;
   height: number;
-  children: Node[];
+  fills: RenderQueue<Fill>;
+  children: RenderQueue<Node>;
 
   constructor(opt: {
     id: string;
@@ -188,12 +233,12 @@ export class Page extends WithFills {
     fills: Fill[];
     children: Node[];
   }) {
-    super(opt);
     this.id = opt.id;
     this.name = opt.name ?? "Page";
     this.width = opt.width;
     this.height = opt.height;
-    this.children = opt.children;
+    this.fills = new RenderQueue("fill", opt.fills);
+    this.children = new RenderQueue("child", opt.children);
   }
 }
 
@@ -206,7 +251,7 @@ export function createPage(opt: {
   return new Page({
     ...opt,
     id: uuid(),
-    fills: opt.fills ?? [WithFills.createColorFill("#ffffff")],
+    fills: opt.fills ?? [Fills.createColorFill("#ffffff")],
     children: opt.children ?? [],
   });
 }
@@ -231,12 +276,13 @@ export function pageFromSerialized(
   return page;
 }
 
-export class Cell extends WithFills {
+export class Cell {
   type = "cell" as const;
   id: string;
   translation: { x: number; y: number };
   path: Path;
-  children: Node[];
+  fills: RenderQueue<Fill>;
+  children: RenderQueue<Node>;
   parent: Page;
 
   constructor(opt: {
@@ -247,10 +293,10 @@ export class Cell extends WithFills {
     path: Path;
     parent: Page;
   }) {
-    super(opt);
     this.id = opt.id;
     this.translation = opt.translation ?? { x: 0, y: 0 };
-    this.children = opt.children ?? [];
+    this.fills = new RenderQueue("fill", opt.fills);
+    this.children = new RenderQueue<Node>("child", opt.children ?? []);
     this.path = opt.path;
     this.parent = opt.parent;
   }
@@ -266,7 +312,7 @@ export function createCell(opt: {
   return new Cell({
     id: uuid(),
     ...opt,
-    fills: opt.fills ?? [WithFills.createColorFill("#dddddd")],
+    fills: opt.fills ?? [Fills.createColorFill("#dddddd")],
     children: opt.children ?? [],
     path:
       opt.path ??
@@ -392,13 +438,13 @@ export class Project {
     if (index === null) {
       page.children.push(cell);
     } else {
-      page.children.splice(index, 0, cell);
+      page.children.insertAt(index, cell);
     }
     this.nodeMap.set(cell.id, cell);
   }
 
   removeCell(page: Page, cell: Cell) {
-    if (page) page.children = page.children.filter((c) => c.id !== cell.id);
+    page.children.removeItem(cell);
     this.nodeMap.delete(cell.id);
   }
 }

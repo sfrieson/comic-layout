@@ -9,7 +9,7 @@ import {
   removePage,
   saveImageToProject,
   setName,
-  setNodeFillAtIndex,
+  setNodeFillAt,
   setNodeFillToType,
   setNodeOpacityAtIndex,
   setPageDimensions,
@@ -104,7 +104,6 @@ function IdleInspector() {
       <button
         onClick={async () => {
           const handle = await openFile();
-          console.log({ handle });
           addRecentFile(handle);
         }}
       >
@@ -205,9 +204,10 @@ function NodeFillsEditor({ nodeId }: { nodeId: string }) {
         <button onClick={() => addNodeFill(nodeId)}>Add Fill</button>
       </div>
       <div>
-        {fills.map((fill, i) => (
+        {fills.reverseMap((fill, i) => (
           <FillEditor
-            key={`node-${nodeId}-fill-${i}-${fill.type}`}
+            // I don't have a better id for each fill, so when one is removed, it needs to re-evaluate all the keys
+            key={`node-${nodeId}-fill-${i}/${fills.length}-${fill.type}`}
             {...fill}
             nodeId={nodeId}
             i={i}
@@ -273,6 +273,9 @@ function CommonFillEditor({
           style={{ width: "5ch" }}
           name="opacity"
           value={opacity * 100}
+          min={0}
+          max={100}
+          step={1}
           onChange={(e) => {
             setNodeOpacityAtIndex(nodeId, i, e.target.valueAsNumber / 100);
           }}
@@ -311,6 +314,22 @@ function ColorFillEditor({
   nodeId: string;
   i: number;
 }) {
+  const onColorchange = (
+    e: React.ChangeEvent<HTMLInputElement> | React.FocusEvent<HTMLInputElement>,
+  ) => {
+    setNodeFillAt(
+      nodeId,
+      i,
+      (fill) => (
+        assert(fill.type === "color", "Fill is not a color fill"),
+        {
+          ...fill,
+          value: e.target.value,
+        }
+      ),
+    );
+  };
+
   return (
     <div className="flex gap-2 h-8">
       <div className="h-full aspect-square">
@@ -319,12 +338,7 @@ function ColorFillEditor({
           className="h-full w-full p-0"
           name="color"
           value={value}
-          onChange={(e) => {
-            setNodeFillAtIndex(nodeId, "color", i, (fill) => ({
-              ...fill,
-              value: e.target.value,
-            }));
-          }}
+          onChange={onColorchange}
         />
       </div>
       <div className="flex gap-2 h-full">
@@ -334,12 +348,7 @@ function ColorFillEditor({
             className="h-full w-full p-0"
             name="color"
             defaultValue={value}
-            onBlur={(e) => {
-              setNodeFillAtIndex(nodeId, "color", i, (fill) => ({
-                ...fill,
-                value: e.target.value,
-              }));
-            }}
+            onBlur={onColorchange}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.currentTarget.blur();
@@ -371,10 +380,17 @@ function ImageFillEditor({
       onSuccess: (assetId) => {
         if (typeof assetId !== "number") return;
         saveImageToProject(assetId);
-        setNodeFillAtIndex(nodeId, "image", i, (fill) => ({
-          ...fill,
-          value: assetId,
-        }));
+        setNodeFillAt(
+          nodeId,
+          i,
+          (fill) => (
+            assert(fill.type === "image", "Fill is not an image fill"),
+            {
+              ...fill,
+              value: assetId,
+            }
+          ),
+        );
       },
     });
   }

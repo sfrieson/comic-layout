@@ -42,10 +42,10 @@ function traverse(node: Node | Node[], fn: (node: Node) => void) {
 
   switch (node.type) {
     case "page":
-      traverse(node.children, fn);
+      traverse(node.children.toArray(), fn);
       break;
     case "cell":
-      traverse(node.children, fn);
+      traverse(node.children.toArray(), fn);
       break;
     default: {
       const _unreachable: never = node;
@@ -61,7 +61,8 @@ export function serializeProject(project: Project): SerializedProject {
       case "page": {
         nodes.push({
           ...node,
-          children: node.children.map((child) => child.id),
+          fills: node.fills.toArray(),
+          children: node.children.toArray().map((child) => child.id),
         });
         break;
       }
@@ -69,7 +70,8 @@ export function serializeProject(project: Project): SerializedProject {
         const { parent, ...rest } = node;
         nodes.push({
           ...rest,
-          children: node.children.map((child) => child.id),
+          fills: node.fills.toArray(),
+          children: node.children.toArray().map((child) => child.id),
         });
         break;
       }

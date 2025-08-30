@@ -279,9 +279,8 @@ class ViewportRenderer {
       context.scale(devicePixelRatio, devicePixelRatio);
       context.translate(ui.pan.x, ui.pan.y);
       context.scale(ui.zoom, ui.zoom);
-      const screen = (n: number) => n / devicePixelRatio / ui.zoom;
+      // const screen = (n: number) => n / devicePixelRatio / ui.zoom;
       const renderInfo: RenderInfo = {
-        screen,
         context,
         project,
         imageMap: grabBag.imageMap,

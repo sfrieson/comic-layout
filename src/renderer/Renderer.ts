@@ -96,7 +96,7 @@ function fillRect(
 export function renderPage(renderInfo: RenderInfo, page: Page) {
   const { width, height, fills, children } = page;
   const { context } = renderInfo;
-  for (const fill of fills) {
+  for (const fill of fills.renderOrder()) {
     fillRect(renderInfo, fill, { x: 0, y: 0, width, height });
   }
   renderInfo.onRendered?.({
@@ -106,7 +106,7 @@ export function renderPage(renderInfo: RenderInfo, page: Page) {
       transform: context.getTransform(),
     },
   });
-  for (const child of children) {
+  for (const child of children.renderOrder()) {
     if (child.type === "cell") {
       renderCell(renderInfo, child);
     }
@@ -135,7 +135,7 @@ function renderCell(renderInfo: RenderInfo, cell: Cell) {
   context.save();
   context.translate(translation.x, translation.y);
   context.clip(path2d);
-  for (const fill of fills) {
+  for (const fill of fills.renderOrder()) {
     fillRect(renderInfo, fill, bb);
   }
   renderInfo.onRendered?.({

@@ -7,7 +7,8 @@ import {
   Fill,
   Project,
   Node,
-  WithFills,
+  Fills,
+  RenderQueue,
 } from "../project/Project.js";
 import { insertAtIndex } from "../utils/array.js";
 import { vec2Add, vec2Mult } from "../utils/vec2.js";
@@ -104,7 +105,7 @@ export const setPageDimensions = (width: number, height: number) => {
 const requireNodeWithFills = (nodeId: string) => {
   const node = requireNode(nodeId);
   assert("fills" in node, "Node does not have fills");
-  return node as Extract<Node, { fills: Fill[] }>;
+  return node as Extract<Node, { fills: RenderQueue<Fill> }>;
 };
 
 const requireNodeFill = (nodeId: string, fillIndex: number) => {
@@ -113,32 +114,21 @@ const requireNodeFill = (nodeId: string, fillIndex: number) => {
   return fill;
 };
 
-const requireNodeFillOfType = (
+export const setNodeFillAt = (
   nodeId: string,
-  fillType: Fill["type"],
   fillIndex: number,
-) => {
-  const fill = requireNodeFill(nodeId, fillIndex);
-  assert(fill.type === fillType, "Not a fill of type " + fillType);
-  return fill;
-};
-
-export const setNodeFillAtIndex = <T extends Fill["type"]>(
-  nodeId: string,
-  fillType: T,
-  fillIndex: number,
-  fill: PropertySetter<Extract<Fill, { type: T }>>,
+  fill: PropertySetter<Fill, Fill>,
 ) => {
   const { history } = store.getState();
-  const originalFill = requireNodeFillOfType(nodeId, fillType, fillIndex);
+  const originalFill = requireNodeFill(nodeId, fillIndex);
   history.add(
     history.actionSet(
       () => {
-        requireNodeWithFills(nodeId).setFill(fillIndex, fill);
+        requireNodeWithFills(nodeId).fills.updateItem(fillIndex, fill);
         projectUpdated();
       },
       () => {
-        requireNodeWithFills(nodeId).setFill(fillIndex, originalFill);
+        requireNodeWithFills(nodeId).fills.updateItem(fillIndex, originalFill);
         projectUpdated();
       },
       {
@@ -187,21 +177,21 @@ export function setNodeFillToType(
         let newFill: Fill;
         switch (type) {
           case "color":
-            newFill = WithFills.createColorFill();
+            newFill = Fills.createColorFill();
             break;
           case "image":
-            newFill = WithFills.createImageFill();
+            newFill = Fills.createImageFill();
             break;
           default:
             const _unreachable: never = type;
             throw new Error("Invalid fill type: " + _unreachable);
         }
 
-        requireNodeWithFills(nodeId).setFill(fillIndex, newFill);
+        requireNodeWithFills(nodeId).fills.updateItem(fillIndex, newFill);
         projectUpdated();
       },
       () => {
-        requireNodeWithFills(nodeId).setFill(fillIndex, originalFill);
+        requireNodeWithFills(nodeId).fills.updateItem(fillIndex, originalFill);
         projectUpdated();
       },
     ),
@@ -214,11 +204,11 @@ export const addNodeFill = (nodeId: string) => {
   history.add(
     history.actionSet(
       () => {
-        node.addFill({ type: "color", value: "#dddddd", opacity: 1 });
+        node.fills.push({ type: "color", value: "#dddddd", opacity: 1 });
         projectUpdated();
       },
       () => {
-        node.removeFill(node.fills.length - 1);
+        node.fills.removeItemAt(node.fills.length - 1);
         projectUpdated();
       },
     ),
@@ -232,11 +222,11 @@ export const removeNodeFillAtIndex = (nodeId: string, fillIndex: number) => {
   history.add(
     history.actionSet(
       () => {
-        requireNodeWithFills(nodeId).removeFill(fillIndex);
+        requireNodeWithFills(nodeId).fills.removeItemAt(fillIndex);
         projectUpdated();
       },
       () => {
-        requireNodeWithFills(nodeId).addFill(fill, fillIndex);
+        requireNodeWithFills(nodeId).fills.push(fill);
         projectUpdated();
       },
     ),
