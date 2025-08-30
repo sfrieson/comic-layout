@@ -5,6 +5,13 @@ import { WithCleanup } from "../utils/Composition.js";
 import { downloadURL, loadImageFromURL } from "../utils/file.js";
 import { expect } from "../utils/assert.js";
 
+if (import.meta.hot) {
+  import.meta.hot.accept("../renderer/Renderer.ts", (e) => {
+    _renderPage = e?.renderPage;
+  });
+}
+
+let _renderPage = renderPage;
 export async function exportPages(project: Project, name: string = "Comic") {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
@@ -41,7 +48,7 @@ export async function exportPages(project: Project, name: string = "Comic") {
   for (const page of project.pages) {
     pageNumber++;
     context.clearRect(0, 0, canvas.width, canvas.height);
-    renderPage(renderInfo, page);
+    _renderPage(renderInfo, page);
     const url = canvas.toDataURL();
     downloadURL(url, `${name} - Page ${pageNumber}.png`);
   }

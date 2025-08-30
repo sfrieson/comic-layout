@@ -1,12 +1,13 @@
 import { assert, expect } from "../utils/assert.js";
-import { PropertySetter } from "../utils/types.js";
-import {
+import { RenderQueue } from "./RenderQueue.js";
+import type {
   SerializedCell,
   SerializedNode,
   SerializedPage,
   SerializedProject,
   SerializedPath,
   SerializedFill,
+  SerializedRectangle,
 } from "./types.js";
 import { v4 as uuid } from "uuid";
 
@@ -28,167 +29,6 @@ interface IDBImageFill {
 }
 
 export type Fill = ColorFill | IDBImageFill;
-
-interface DLLNode<T> {
-  data: T;
-  next: DLLNode<T>;
-  prev: DLLNode<T>;
-}
-
-/**
- *  This is a doubly-linked list where all of its interfaces are created from the
- *  point of view of the UI, rendering top-down, but also returns a list for the
- *  renderer which renders buttom-up.
- */
-export class RenderQueue<T extends object> {
-  name = "RenderQueue";
-  length: number = 0;
-  #end = {
-    data: null as unknown as T,
-    next: null as unknown as DLLNode<T>,
-    prev: null as unknown as DLLNode<T>,
-  };
-
-  constructor(name: string, data: T[]) {
-    this.name = name;
-    // this.#head = this.#end;
-    // this.#tail = this.#end;
-    this.length = 0;
-    this.#end.next = this.#end;
-    this.#end.prev = this.#end;
-    data.forEach((item) => this.push(item));
-  }
-
-  push(data: T) {
-    const node: DLLNode<T> = {
-      data,
-      next: this.#end,
-      prev: this.#end.prev,
-    };
-    if (this.#end.next === this.#end) {
-      this.#end.next = node;
-    }
-    this.#end.prev.next = node;
-    this.#end.prev = node;
-    this.length++;
-    return node;
-  }
-
-  removeItem(item: T) {
-    let node = this.#end.next;
-    while (node !== this.#end) {
-      if (node.data === item) {
-        this.#removeNode(node);
-        return node;
-      }
-    }
-    throw new Error(`${this.name} item not found`);
-  }
-
-  removeItemAt(index: number) {
-    const node = this.#nodeAt(index);
-    node.prev.next = node.next;
-    node.next.prev = node.prev;
-    this.length--;
-    return node;
-  }
-
-  insertAt(index: number, item: T) {
-    const next = this.#nodeAt(index);
-    const newNode: DLLNode<T> = {
-      data: item,
-      next: next,
-      prev: next.prev,
-    };
-    next.prev.next = newNode;
-    next.prev = newNode;
-    this.length++;
-  }
-
-  #removeNode(node: DLLNode<T>) {
-    node.prev.next = node.next;
-    node.next.prev = node.prev;
-    this.length--;
-    return node;
-  }
-
-  #nodeAt(index: number) {
-    let node = this.#end;
-    do {
-      node = node.next;
-      if (node === this.#end) {
-        throw new Error(`${this.name} node ${index} not found`);
-      }
-    } while (--index > -1);
-    return node;
-  }
-
-  at(index: number) {
-    return this.#nodeAt(index).data;
-  }
-
-  updateItem<LocalT extends T>(
-    index: number,
-    nextItem: PropertySetter<LocalT, T>,
-  ) {
-    const node = this.#nodeAt(index);
-    if (typeof nextItem === "function") {
-      node.data = nextItem(node.data);
-    } else {
-      node.data = nextItem;
-    }
-  }
-
-  toArray(): T[] {
-    const array: T[] = [];
-    let current = this.#end.next;
-    while (current !== this.#end) {
-      array.push(current.data);
-      current = current.next;
-    }
-    return array;
-  }
-
-  *renderOrder(): IterableIterator<T> {
-    let current = this.#end.prev;
-    while (current !== this.#end) {
-      yield current.data;
-      current = current.prev;
-    }
-  }
-
-  reverseMap<RT>(callback: (item: T, i: number) => RT): RT[] {
-    const array: RT[] = [];
-    let current = this.#end.prev;
-    let counter = this.length - 1;
-    while (current !== this.#end) {
-      array.push(callback(current.data, counter--));
-      current = current.prev;
-    }
-    return array;
-  }
-
-  indexOf(item: T) {
-    let current = this.#end.next;
-    let counter = 0;
-    while (current !== this.#end) {
-      if (current.data === item) {
-        return counter;
-      }
-      current = current.next;
-      counter++;
-    }
-    return -1;
-  }
-  forEach(callback: (item: T, index: number) => void) {
-    let current = this.#end.next;
-    let counter = 0;
-    while (current !== this.#end) {
-      callback(current.data, counter++);
-      current = current.next;
-    }
-  }
-}
 
 export const Fills = {
   createColorFill(value: string = "#ffffff", opacity: number = 1): ColorFill {
@@ -224,6 +64,26 @@ export class Page {
   height: number;
   fills: RenderQueue<Fill>;
   children: RenderQueue<Node>;
+
+  get translation() {
+    return {
+      get x() {
+        return 0;
+      },
+      set x(value: number) {
+        throw new Error("Page translation is not mutable");
+      },
+      get y() {
+        return 0;
+      },
+      set y(value: number) {
+        throw new Error("Page translation is not mutable");
+      },
+    };
+  }
+  set translation(value: { x: number; y: number }) {
+    throw new Error("Page translation is not mutable");
+  }
 
   constructor(opt: {
     id: string;
@@ -267,13 +127,112 @@ export function pageFromSerialized(
     fills: fillsFromSerialized(serialized.fills),
   });
   project.nodeMap.set(page.id, page);
-  serialized.children.forEach((id) => {
-    const node = expectSerializedNode(nodeMap.get(id), "cell");
-    const cell = cellFromSerialized(project, nodeMap, node, page);
-    page.children.push(cell);
-  });
-
+  childrenFromSerialized(project, nodeMap, page, serialized.children);
   return page;
+}
+
+function childrenFromSerialized(
+  project: Project,
+  nodeMap: SeralizedNodeMap,
+  parent: Node,
+  childIds: string[],
+) {
+  childIds.forEach((id) => {
+    const node = expect(nodeMap.get(id), "Child not found");
+    let child: Node;
+    switch (node.type) {
+      case "cell":
+        child = cellFromSerialized(project, nodeMap, node, parent);
+        break;
+      case "rectangle":
+        child = rectangleFromSerialized(project, nodeMap, node, parent);
+        break;
+      default:
+        if (node.type === "page") {
+          throw new Error("Page cannot have a parent that is not a page");
+        }
+        const _unreachable: never = node;
+        throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
+    }
+    parent.children.push(child);
+  });
+}
+
+export class Rectangle {
+  type = "rectangle" as const;
+  id: string;
+  translation: { x: number; y: number };
+  width: number;
+  height: number;
+  fills: RenderQueue<Fill>;
+  parent: Node;
+  /** Not used, but keeps it consistent with other nodes */
+  children: RenderQueue<Node>;
+
+  constructor(opt: {
+    id: string;
+    translation?: { x: number; y: number };
+    width: number;
+    height: number;
+    fills: Fill[];
+    parent: Node;
+    children?: Node[];
+  }) {
+    this.id = opt.id;
+    this.translation = opt.translation ?? { x: 0, y: 0 };
+    this.width = opt.width;
+    this.height = opt.height;
+    this.fills = new RenderQueue("fill", opt.fills);
+    this.parent = opt.parent;
+    this.children = new RenderQueue("child", opt.children ?? []);
+  }
+
+  get path() {
+    return new Path({
+      id: uuid(),
+      points: [
+        { x: 0, y: 0 },
+        { x: this.width, y: 0 },
+        { x: this.width, y: this.height },
+        { x: 0, y: this.height },
+      ],
+      closed: true,
+    });
+  }
+}
+
+export function createRectangle(opt: {
+  translation?: { x: number; y: number };
+  width?: number;
+  height?: number;
+  fills?: Fill[];
+  parent: Node;
+}) {
+  return new Rectangle({
+    translation: { x: 0, y: 0 },
+    width: 100,
+    height: 100,
+    fills: [Fills.createColorFill("#dddddd")],
+    ...opt,
+    id: uuid(),
+  });
+}
+
+function rectangleFromSerialized(
+  project: Project,
+  nodeMap: SeralizedNodeMap,
+  serialized: SerializedRectangle,
+  parent: Node,
+) {
+  const rectangle = new Rectangle({
+    ...serialized,
+    fills: fillsFromSerialized(serialized.fills),
+    children: [],
+    parent,
+  });
+  project.nodeMap.set(rectangle.id, rectangle);
+  childrenFromSerialized(project, nodeMap, rectangle, serialized.children);
+  return rectangle;
 }
 
 export class Cell {
@@ -283,7 +242,7 @@ export class Cell {
   path: Path;
   fills: RenderQueue<Fill>;
   children: RenderQueue<Node>;
-  parent: Page;
+  parent: Node;
 
   constructor(opt: {
     id: string;
@@ -291,7 +250,7 @@ export class Cell {
     fills: Fill[];
     children: Node[];
     path: Path;
-    parent: Page;
+    parent: Node;
   }) {
     this.id = opt.id;
     this.translation = opt.translation ?? { x: 0, y: 0 };
@@ -333,7 +292,7 @@ export function cellFromSerialized(
   project: Project,
   nodeMap: SeralizedNodeMap,
   serialized: SerializedCell,
-  parent: Page,
+  parent: Node,
 ) {
   const cell = new Cell({
     ...serialized,
@@ -348,10 +307,11 @@ export function cellFromSerialized(
     parent,
   });
   project.nodeMap.set(cell.id, cell);
+  childrenFromSerialized(project, nodeMap, cell, serialized.children);
   return cell;
 }
 
-export type Node = Page | Cell;
+export type Node = Page | Cell | Rectangle;
 
 export class Path {
   type = "path" as const;

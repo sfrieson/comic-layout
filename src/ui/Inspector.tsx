@@ -13,8 +13,9 @@ import {
   setNodeFillToType,
   setNodeOpacityAtIndex,
   setPageDimensions,
-  translateCell,
+  translateNode,
   exportProject,
+  addRectangle,
 } from "../app/projectActions.js";
 
 import { projectAssets, useRecentFiles } from "../app/hooks.js";
@@ -64,12 +65,17 @@ function CellInspector({ node }: { node: Cell }) {
         x: e.key === "ArrowRight" ? dist : e.key === "ArrowLeft" ? -dist : 0,
         y: e.key === "ArrowDown" ? dist : e.key === "ArrowUp" ? -dist : 0,
       };
-      translateCell(node.id, delta);
+      translateNode(node.id, delta);
     },
   );
   return (
     <div>
       <p>Cell Inspector</p>
+      <hr />
+      <div className="flex gap-2">
+        <button onClick={() => addRectangle(node.id)}>Rect</button>
+      </div>
+      <hr />
       <NodeFillsEditor nodeId={node.id} />
     </div>
   );

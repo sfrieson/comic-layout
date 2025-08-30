@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function migrateProject(
   parsed: Record<string, unknown> & { meta: { version: number } },
 ) {

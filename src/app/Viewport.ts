@@ -1,14 +1,14 @@
-import { Cell, Page, Project } from "../project/Project.js";
-import { RenderInfo, renderPage } from "../renderer/Renderer.js";
+import type { Project } from "../project/Project.js";
+import { type RenderInfo, renderPage } from "../renderer/Renderer.js";
 import { assert, expect } from "../utils/assert.js";
 import { eventVec2, vec2Add, vec2Mult, vec2Sub } from "../utils/vec2.js";
 import { store } from "./App.js";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { RootSVG, Data as UIData } from "../ui/editing/ViewportRoot.js";
-import { ExtractState } from "zustand";
+import { RootSVG, type Data as UIData } from "../ui/editing/ViewportRoot.js";
+import type { ExtractState } from "zustand";
 import { nodeToBB, screenToWorld } from "../utils/viewportUtils.js";
-import { scaleCell, translateCell } from "./projectActions.js";
+import { scaleCell, translateNode } from "./projectActions.js";
 import { WithCleanup } from "../utils/Composition.js";
 import { projectAssetsTable } from "./db.js";
 import { loadImageFromURL } from "../utils/file.js";
@@ -299,10 +299,10 @@ class ViewportRenderer {
                 height: opt.node.height,
               });
               break;
-            case "cell":
+            case "rect-like":
               if (!ui.selection.has(opt.node)) return;
               addUIData({
-                type: "cell",
+                type: "rect-like",
                 node: opt.node,
                 transform: opt.renderInfo.transform,
                 path: opt.renderInfo.path,
@@ -336,7 +336,7 @@ class ViewportRenderer {
           onWheel: this.#interactivity.onWheel,
           onMouseDown: this.#interactivity.onMouseDown,
           scaleCell: scaleCell,
-          translateCell,
+          translateCell: translateNode,
         }),
       ),
     );

@@ -8,8 +8,9 @@ import {
   Project,
   Node,
   Fills,
-  RenderQueue,
+  createRectangle,
 } from "../project/Project.js";
+import { RenderQueue } from "../project/RenderQueue.js";
 import { insertAtIndex } from "../utils/array.js";
 import { vec2Add, vec2Mult } from "../utils/vec2.js";
 import { PropertySetter } from "../utils/types.js";
@@ -363,23 +364,43 @@ export const scaleCell = (
   );
 };
 
-export const translateCell = (
-  cellId: string,
+export const translateNode = (
+  nodeId: string,
   delta: { x: number; y: number },
 ) => {
   const { history } = store.getState();
-  const cell = requireCell(cellId);
-  const before = { ...cell.translation };
+  const node = requireNode(nodeId);
+  const before = { ...node.translation };
 
   history.add(
     history.actionSet(
       () => {
-        cell.translation.x += delta.x;
-        cell.translation.y += delta.y;
+        node.translation.x += delta.x;
+        node.translation.y += delta.y;
         projectUpdated();
       },
       () => {
-        cell.translation = before;
+        node.translation = before;
+        projectUpdated();
+      },
+    ),
+  );
+};
+
+export const addRectangle = (nodeId: string) => {
+  const { history } = store.getState();
+  const node = requireNode(nodeId);
+  const rectangle = createRectangle({
+    parent: node,
+  });
+  history.add(
+    history.actionSet(
+      () => {
+        node.children.push(rectangle);
+        projectUpdated();
+      },
+      () => {
+        node.children.removeItem(rectangle);
         projectUpdated();
       },
     ),

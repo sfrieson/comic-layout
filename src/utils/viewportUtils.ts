@@ -1,4 +1,4 @@
-import { Node } from "../project/Project.js";
+import type { Node } from "../project/Project.js";
 import { vec2Div, vec2Sub } from "./vec2.js";
 
 export function screenToWorld(
@@ -39,6 +39,18 @@ export function nodeToBB(
   }
   if (node.type === "cell") {
     return aabbFromPoints(node.path.points, offset);
+  }
+  if (node.type === "rectangle") {
+    return aabbFromPoints(
+      [
+        node.translation,
+        {
+          x: node.width + node.translation.x,
+          y: node.height + node.translation.y,
+        },
+      ],
+      offset,
+    );
   }
   const _unreachable: never = node;
   throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);

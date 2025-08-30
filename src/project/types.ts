@@ -68,9 +68,21 @@ const serializedPageSchema = z.object({
 
 export type SerializedPage = z.infer<typeof serializedPageSchema>;
 
+const serializedRectangleSchema = z.object({
+  type: z.literal("rectangle"),
+  id: z.string(),
+  translation: z.object({ x: z.number(), y: z.number() }),
+  width: z.number(),
+  height: z.number(),
+  fills: z.array(serializedFillSchema),
+  children: z.array(z.string()),
+});
+
+export type SerializedRectangle = z.infer<typeof serializedRectangleSchema>;
 const serializedNodeSchema = z.discriminatedUnion("type", [
   serializedPageSchema,
   serializedCellSchema,
+  serializedRectangleSchema,
 ]);
 
 export type SerializedNode = z.infer<typeof serializedNodeSchema>;

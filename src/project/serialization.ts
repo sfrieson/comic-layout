@@ -47,6 +47,9 @@ function traverse(node: Node | Node[], fn: (node: Node) => void) {
     case "cell":
       traverse(node.children.toArray(), fn);
       break;
+    case "rectangle":
+      traverse(node.children.toArray(), fn);
+      break;
     default: {
       const _unreachable: never = node;
       throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
@@ -67,6 +70,15 @@ export function serializeProject(project: Project): SerializedProject {
         break;
       }
       case "cell": {
+        const { parent, ...rest } = node;
+        nodes.push({
+          ...rest,
+          fills: node.fills.toArray(),
+          children: node.children.toArray().map((child) => child.id),
+        });
+        break;
+      }
+      case "rectangle": {
         const { parent, ...rest } = node;
         nodes.push({
           ...rest,

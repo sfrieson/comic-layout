@@ -1,4 +1,11 @@
-import type { Cell, Fill, Page, Project } from "../project/Project.js";
+import type {
+  Cell,
+  Fill,
+  Node,
+  Page,
+  Project,
+  Rectangle,
+} from "../project/Project.js";
 import { expect } from "../utils/assert.js";
 import { nodeToBB } from "../utils/viewportUtils.js";
 
@@ -11,8 +18,8 @@ export type RenderCallbackOptions =
       };
     }
   | {
-      type: "cell";
-      node: Cell;
+      type: "rect-like";
+      node: Cell | Rectangle;
       renderInfo: {
         transform: DOMMatrix;
         path: Path2D;
@@ -107,17 +114,15 @@ export function renderPage(renderInfo: RenderInfo, page: Page) {
     },
   });
   for (const child of children.renderOrder()) {
-    if (child.type === "cell") {
-      renderCell(renderInfo, child);
-    }
+    renderChild(renderInfo, child);
   }
 }
 
-function renderCell(renderInfo: RenderInfo, cell: Cell) {
+function renderCell(renderInfo: RenderInfo, node: Cell | Rectangle) {
   const { context } = renderInfo;
-  const { translation, path, fills } = cell;
+  const { translation, path, fills } = node;
   const path2d = new Path2D();
-  const bb = expect(nodeToBB(cell), "Cell has no path");
+  const bb = expect(nodeToBB(node), "Cell has no path");
 
   let started = false;
   for (const point of path.points) {
@@ -139,12 +144,31 @@ function renderCell(renderInfo: RenderInfo, cell: Cell) {
     fillRect(renderInfo, fill, bb);
   }
   renderInfo.onRendered?.({
-    type: "cell",
-    node: cell,
+    type: "rect-like",
+    node,
     renderInfo: {
       transform: context.getTransform(),
       path: path2d,
     },
   });
+  for (const child of node.children.renderOrder()) {
+    renderChild(renderInfo, child);
+  }
   context.restore();
+}
+
+function renderRectangle(renderInfo: RenderInfo, rectangle: Rectangle) {
+  renderCell(renderInfo, rectangle);
+}
+
+function renderChild(renderInfo: RenderInfo, child: Node) {
+  if (child.type === "cell" || child.type === "rectangle") {
+    renderCell(renderInfo, child);
+  } else {
+    if (child.type === "page") {
+      throw new Error("Page should not be a child of a page");
+    }
+    const _unreachable: never = child;
+    throw new Error(`Unexpected node type: ${(_unreachable as Node).type}`);
+  }
 }

@@ -7,12 +7,12 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import eslintConfigPrettier from "eslint-config-prettier/flat";
 import reactRefresh from "eslint-plugin-react-refresh";
 
-export default defineConfig([
+export default tseslint.config([
   globalIgnores(["node_modules", "dist", "build", "coverage"]),
   {
     files: ["**/*.{ts,tsx}"],
     plugins: { js },
-    extends: ["js/recommended"],
+    extends: [js.configs.recommended],
     languageOptions: { globals: globals.browser },
     rules: {
       "@typescript-eslint/no-unused-vars": [
@@ -24,7 +24,7 @@ export default defineConfig([
       ],
     },
   },
-  tseslint.configs.recommended,
+  tseslint.config(tseslint.configs.strictTypeChecked),
   {
     files: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
     settings: {
@@ -55,7 +55,7 @@ export default defineConfig([
       ],
     },
   },
-  pluginReact.configs.flat["jsx-runtime"],
+  pluginReact.configs.flat["jsx-runtime"]!,
   reactRefresh.configs.vite,
   eslintConfigPrettier,
 ]);

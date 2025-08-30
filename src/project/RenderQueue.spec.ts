@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { RenderQueue } from "./Project.js";
+import { RenderQueue } from "./RenderQueue.js";
 
 describe("RenderQueue", () => {
   it("should restore items from array", () => {

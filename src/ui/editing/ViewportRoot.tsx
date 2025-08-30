@@ -6,10 +6,10 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Cell, Page } from "../../project/Project.js";
+import { Cell, Page, Rectangle } from "../../project/Project.js";
 import { aabbFromPoints } from "../../utils/viewportUtils.js";
 import { useDrag } from "../hooks.js";
-import type { scaleCell, translateCell } from "../../app/projectActions.js";
+import type { scaleCell, translateNode } from "../../app/projectActions.js";
 import { vec2Div, vec2Mult } from "../../utils/vec2.js";
 
 export interface PageData {
@@ -22,8 +22,8 @@ export interface PageData {
 }
 
 export interface CellData {
-  type: "cell";
-  node: Cell;
+  type: "rect-like";
+  node: Cell | Rectangle;
   transform: DOMMatrix;
   path: Path2D;
   selected: boolean;
@@ -77,8 +77,8 @@ export function RootSVG({
           switch (d.type) {
             case "page":
               return <PageComponent key={d.node.id} {...d} />;
-            case "cell":
-              return <CellComponent key={d.node.id} {...d} />;
+            case "rect-like":
+              return <RectLikeComponent key={d.node.id} {...d} />;
           }
         })}
       </ActionContext.Provider>
@@ -109,7 +109,7 @@ function PageComponent({ node, transform, active }: PageData) {
   );
 }
 
-function CellComponent({ node, transform, selected }: CellData) {
+function RectLikeComponent({ node, transform, selected }: CellData) {
   const points = node.path.points.map((p) => applyTransform(transform, p));
   const bb = aabbFromPoints(points);
   const { scaleCell, translateCell } = useContext(ActionContext);
@@ -333,7 +333,7 @@ function pathToSVG(points: { x: number; y: number }[], closed: boolean) {
 
 interface Actions {
   scaleCell: typeof scaleCell;
-  translateCell: typeof translateCell;
+  translateCell: typeof translateNode;
 }
 
 const ActionContext = createContext<Actions>({
