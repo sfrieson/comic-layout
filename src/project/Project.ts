@@ -282,7 +282,7 @@ export function createCell(opt: {
           { x: 100, y: 100 },
           { x: 0, y: 100 },
         ],
-        closed: false,
+        closed: true,
       }),
     parent: opt.parent,
   });
@@ -296,11 +296,6 @@ export function cellFromSerialized(
 ) {
   const cell = new Cell({
     ...serialized,
-    // children: serialized.children.map((id) => {
-    //   const node = expectSerializedNode(nodeMap.get(id), "cell");
-    //   const cell = Cell.fromSerialized(project, nodeMap, node);
-    //   return cell;
-    // }),
     path: Path.fromSerialized(project, nodeMap, serialized.path),
     fills: fillsFromSerialized(serialized.fills),
     children: [],

@@ -38,12 +38,7 @@ export interface RenderInfo {
 function fillRect(
   { context, imageMap }: RenderInfo,
   fill: Fill,
-  {
-    x,
-    y,
-    width,
-    height,
-  }: { x: number; y: number; width: number; height: number },
+  { width, height }: { width: number; height: number },
 ) {
   context.save();
   const cleanup = () => {
@@ -54,7 +49,7 @@ function fillRect(
     case "color":
       context.fillStyle = fill.value;
       context.beginPath();
-      context.rect(x, y, width, height);
+      context.rect(0, 0, width, height);
       context.fill();
       break;
     case "image": {
@@ -80,8 +75,8 @@ function fillRect(
           const scaledHeight = image.height * scale;
           context.drawImage(
             image,
-            x + (width - scaledWidth) / 2,
-            y + (height - scaledHeight) / 2,
+            (width - scaledWidth) / 2,
+            (height - scaledHeight) / 2,
             scaledWidth,
             scaledHeight,
           );
@@ -104,7 +99,7 @@ export function renderPage(renderInfo: RenderInfo, page: Page) {
   const { width, height, fills, children } = page;
   const { context } = renderInfo;
   for (const fill of fills.renderOrder()) {
-    fillRect(renderInfo, fill, { x: 0, y: 0, width, height });
+    fillRect(renderInfo, fill, { width, height });
   }
   renderInfo.onRendered?.({
     type: "page",
@@ -118,7 +113,7 @@ export function renderPage(renderInfo: RenderInfo, page: Page) {
   }
 }
 
-function renderCell(renderInfo: RenderInfo, node: Cell | Rectangle) {
+function renderRectangle(renderInfo: RenderInfo, node: Cell | Rectangle) {
   const { context } = renderInfo;
   const { translation, path, fills } = node;
   const path2d = new Path2D();
@@ -136,7 +131,6 @@ function renderCell(renderInfo: RenderInfo, node: Cell | Rectangle) {
   if (path.closed) {
     path2d.closePath();
   }
-
   context.save();
   context.translate(translation.x, translation.y);
   context.clip(path2d);
@@ -157,13 +151,9 @@ function renderCell(renderInfo: RenderInfo, node: Cell | Rectangle) {
   context.restore();
 }
 
-function renderRectangle(renderInfo: RenderInfo, rectangle: Rectangle) {
-  renderCell(renderInfo, rectangle);
-}
-
 function renderChild(renderInfo: RenderInfo, child: Node) {
   if (child.type === "cell" || child.type === "rectangle") {
-    renderCell(renderInfo, child);
+    renderRectangle(renderInfo, child);
   } else {
     if (child.type === "page") {
       throw new Error("Page should not be a child of a page");

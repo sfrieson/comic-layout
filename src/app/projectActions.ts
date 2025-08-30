@@ -263,18 +263,21 @@ export const addPage = () => {
   );
 };
 
-export const removeCell = (cell: Cell) => {
+export const removeNodeFromParent = (node: Node) => {
   const { history } = store.getState();
-  const parent = cell.parent;
-  const childrenIndex = parent?.children.indexOf(cell);
+  assert("parent" in node, "Node does not have a parent");
+  const parent = node.parent;
+  const childIndex = parent?.children.indexOf(node);
   history.add(
     history.actionSet(
       () => {
-        requireProject().removeCell(parent, cell);
+        requireProject().nodeMap.get(parent.id)?.children.removeItem(node);
         projectUpdated();
       },
       () => {
-        requireProject().addCell(parent, cell, childrenIndex);
+        requireProject()
+          .nodeMap.get(parent.id)
+          ?.children.insertAt(childIndex, node);
         projectUpdated();
       },
     ),
@@ -334,33 +337,69 @@ export function addCellToPage(pageId: string) {
   );
 }
 
-export const scaleCell = (
-  cellId: string,
+export const scaleNode = (
+  nodeId: string,
   scale: { x: number; y: number },
   translate: { x: number; y: number } = { x: 0, y: 0 },
 ) => {
   const { history } = store.getState();
-  const cell = requireCell(cellId);
+  const node = requireNode(nodeId);
 
-  const originalPathPoints = cell.path.points;
-  const originalTranslation = cell.translation;
+  let action;
+  let undoAction;
+  switch (node.type) {
+    case "cell": {
+      const cell = node;
 
-  history.add(
-    history.actionSet(
-      () => {
+      const originalPathPoints = cell.path.points;
+      const originalTranslation = cell.translation;
+
+      action = () => {
         cell.path.points = originalPathPoints.map((pt) => vec2Mult(pt, scale));
         cell.translation = vec2Add(originalTranslation, translate);
         projectUpdated();
-      },
-      () => {
+      };
+      undoAction = () => {
         cell.path.points = originalPathPoints;
         cell.translation = originalTranslation;
         projectUpdated();
-      },
-      {
-        key: `scale-cell-${cellId}`,
-      },
-    ),
+      };
+      break;
+    }
+    case "rectangle": {
+      const rectangle = node;
+      const originalTranslation = rectangle.translation;
+      const originalWidth = rectangle.width;
+      const originalHeight = rectangle.height;
+
+      action = () => {
+        rectangle.translation = vec2Add(originalTranslation, translate);
+        rectangle.width = originalWidth * scale.x;
+        rectangle.height = originalHeight * scale.y;
+        projectUpdated();
+      };
+      undoAction = () => {
+        rectangle.translation = originalTranslation;
+        rectangle.width = originalWidth;
+        rectangle.height = originalHeight;
+        projectUpdated();
+      };
+      break;
+    }
+    default: {
+      if (node.type === "page") {
+        throw new Error("Page cannot be scaled"); // ??? Can it?
+      }
+      const _unreachable: never = node;
+      throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
+      break;
+    }
+  }
+
+  history.add(
+    history.actionSet(action, undoAction, {
+      key: `scale-node-${nodeId}`,
+    }),
   );
 };
 
@@ -397,10 +436,12 @@ export const addRectangle = (nodeId: string) => {
     history.actionSet(
       () => {
         node.children.push(rectangle);
+        requireProject().nodeMap.set(rectangle.id, rectangle);
         projectUpdated();
       },
       () => {
         node.children.removeItem(rectangle);
+        requireProject().nodeMap.delete(rectangle.id);
         projectUpdated();
       },
     ),

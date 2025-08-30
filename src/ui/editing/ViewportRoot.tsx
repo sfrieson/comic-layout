@@ -1,3 +1,4 @@
+import cx from "classnames";
 import {
   createContext,
   Fragment,
@@ -9,8 +10,10 @@ import {
 import { Cell, Page, Rectangle } from "../../project/Project.js";
 import { aabbFromPoints } from "../../utils/viewportUtils.js";
 import { useDrag } from "../hooks.js";
-import type { scaleCell, translateNode } from "../../app/projectActions.js";
+import type { scaleNode, translateNode } from "../../app/projectActions.js";
 import { vec2Div, vec2Mult } from "../../utils/vec2.js";
+
+import styles from "./viewport.module.css";
 
 export interface PageData {
   type: "page";
@@ -37,7 +40,7 @@ export function RootSVG({
   onMouseDown,
   width,
   height,
-  scaleCell,
+  scaleNode,
   translateCell,
 }: {
   onWheel: (e: WheelEvent) => void;
@@ -56,10 +59,10 @@ export function RootSVG({
 
   const actions = useMemo(
     () => ({
-      scaleCell,
+      scaleNode,
       translateCell,
     }),
-    [scaleCell, translateCell],
+    [scaleNode, translateCell],
   );
 
   return (
@@ -99,12 +102,7 @@ function PageComponent({ node, transform, active }: PageData) {
       y={y}
       width={width}
       height={height}
-      fill="transparent"
-      stroke={active ? "cyan" : "black"}
-      strokeWidth={active ? 2 : 1}
-      style={{
-        zIndex: active ? 1 : 0,
-      }}
+      className={cx(styles.page, active && styles.page_active)}
     />
   );
 }
@@ -112,37 +110,37 @@ function PageComponent({ node, transform, active }: PageData) {
 function RectLikeComponent({ node, transform, selected }: CellData) {
   const points = node.path.points.map((p) => applyTransform(transform, p));
   const bb = aabbFromPoints(points);
-  const { scaleCell, translateCell } = useContext(ActionContext);
+  const { scaleNode: scaleCell, translateCell } = useContext(ActionContext);
   return (
     <Fragment>
       <path
         d={pathToSVG(points, node.path.closed)}
-        fill="none"
-        stroke={selected ? "cyan" : "transparent"}
-        strokeWidth={selected ? 2 : 0}
+        className={cx(styles.shape, selected && styles.shape_selected)}
       />
-      <BoundingBox
-        {...bb}
-        onScale={(handle, delta) => {
-          scaleCell(
-            node.id,
-            handle,
-            vec2Div(delta, {
-              x: transform.a,
-              y: transform.d,
-            }),
-          );
-        }}
-        onTranslate={(delta) => {
-          translateCell(
-            node.id,
-            vec2Div(delta, {
-              x: transform.a,
-              y: transform.d,
-            }),
-          );
-        }}
-      />
+      {selected && (
+        <BoundingBox
+          {...bb}
+          onScale={(handle, delta) => {
+            scaleCell(
+              node.id,
+              handle,
+              vec2Div(delta, {
+                x: transform.a,
+                y: transform.d,
+              }),
+            );
+          }}
+          onTranslate={(delta) => {
+            translateCell(
+              node.id,
+              vec2Div(delta, {
+                x: transform.a,
+                y: transform.d,
+              }),
+            );
+          }}
+        />
+      )}
     </Fragment>
   );
 }
@@ -222,13 +220,40 @@ function BoundingBox({
   }
 
   return (
-    <g transform={`translate(${x}, ${y})`}>
+    <g transform={`translate(${x}, ${y})`} className={styles.boundingBox_group}>
+      {/* {(
+        [
+          [
+            [0, 0],
+            [0, 1],
+          ],
+          [
+            [0, 1],
+            [1, 1],
+          ],
+          [
+            [1, 0],
+            [1, 1],
+          ],
+          [
+            [0, 0],
+            [1, 0],
+          ],
+        ] as const
+      ).map(([a, b]) => (
+        <line
+          key={a.join(",") + "," + b.join(",")}
+          x1={a[0] * width}
+          y1={a[1] * height}
+          x2={b[0] * width}
+          y2={b[1] * height}
+          className={styles.boundingBox_boxLine}
+        />
+      ))} */}
       <rect
         width={width}
         height={height}
-        fill="transparent"
-        stroke="green"
-        strokeWidth={4}
+        className={styles.boundingBox_box}
         onMouseDown={onMouseDown}
       />
       {(["nw", "ne", "sw", "se", "n", "e", "s", "w"] as const).map(
@@ -288,10 +313,8 @@ function Handle({
       y={y}
       width={size}
       height={size}
-      fill="green"
-      stroke="black"
-      strokeWidth={1}
       onMouseDown={onMouseDown}
+      className={styles.boundingBox_handle}
     />
   );
 }
@@ -332,11 +355,11 @@ function pathToSVG(points: { x: number; y: number }[], closed: boolean) {
 }
 
 interface Actions {
-  scaleCell: typeof scaleCell;
+  scaleNode: typeof scaleNode;
   translateCell: typeof translateNode;
 }
 
 const ActionContext = createContext<Actions>({
-  scaleCell: () => {},
+  scaleNode: () => {},
   translateCell: () => {},
 });

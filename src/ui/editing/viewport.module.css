@@ -1,0 +1,50 @@
+.boundingBox_group {
+}
+
+.boundingBox_box {
+  stroke: green;
+  stroke-width: 2;
+  fill: transparent;
+  &:hover {
+    stroke-width: 4;
+  }
+}
+
+.boundingBox_boxLine {
+  stroke: green;
+  stroke-width: 4;
+}
+
+.shape {
+  fill: transparent;
+  stroke: blue;
+  stroke-width: 0;
+
+  &:hover {
+    stroke-width: 4;
+  }
+}
+
+.shape_selected {
+  stroke: cyan;
+  stroke-width: 2;
+}
+
+.page {
+  fill: transparent;
+}
+
+.page_active {
+  stroke: cyan;
+  stroke-width: 2;
+}
+
+.boundingBox_handle {
+  stroke: black;
+  stroke-width: 1;
+  fill: green;
+
+  &:hover {
+    stroke-width: 4;
+  }
+}

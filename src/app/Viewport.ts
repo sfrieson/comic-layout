@@ -1,4 +1,4 @@
-import type { Project } from "../project/Project.js";
+import type { Node, Project } from "../project/Project.js";
 import { type RenderInfo, renderPage } from "../renderer/Renderer.js";
 import { assert, expect } from "../utils/assert.js";
 import { eventVec2, vec2Add, vec2Mult, vec2Sub } from "../utils/vec2.js";
@@ -7,8 +7,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { RootSVG, type Data as UIData } from "../ui/editing/ViewportRoot.js";
 import type { ExtractState } from "zustand";
-import { nodeToBB, screenToWorld } from "../utils/viewportUtils.js";
-import { scaleCell, translateNode } from "./projectActions.js";
+import {
+  aabbFromPoints,
+  nodeToBB,
+  screenToWorld,
+} from "../utils/viewportUtils.js";
+import { scaleNode, translateNode } from "./projectActions.js";
 import { WithCleanup } from "../utils/Composition.js";
 import { projectAssetsTable } from "./db.js";
 import { loadImageFromURL } from "../utils/file.js";
@@ -141,54 +145,65 @@ function interactivity() {
   function select(x: number, y: number) {
     const { project, ui } = store.getState();
     assert(project, "Project not found");
-    const worldPos = screenToWorld({ x, y }, ui);
     if (!project.pages.length) return;
 
     const deselect = () => store.getState().setActivePage("");
 
-    let found = null;
+    const worldPos = screenToWorld({ x, y }, ui);
+
+    let foundPage = null;
+    let foundPageBB = null;
     for (const [i, page] of project.pages.entries()) {
-      if (
-        worldPos.x > page.width * i &&
-        worldPos.x < page.width * (i + 1) &&
-        worldPos.y > 0 &&
-        worldPos.y < page.height
-      ) {
-        found = page;
+      const bb = aabbFromPoints([
+        { x: page.width * i, y: 0 },
+        { x: page.width * (i + 1), y: page.height },
+      ]);
+      if (bb.contains(worldPos)) {
+        foundPage = page;
+        foundPageBB = bb;
         break;
       }
     }
-    if (!found) {
+
+    if (!foundPage || !foundPageBB) {
       deselect();
       return;
     }
 
-    if (found && found.id !== ui.activePage) {
-      store.getState().setActivePage(found.id);
+    if (foundPage && foundPage.id !== ui.activePage) {
+      store.getState().setActivePage(foundPage.id);
       return;
     }
 
     // TODO: selection is in the active page. Select from elements in the active page.
 
-    let clicked = false;
-    const pageTranslation = project.pages.indexOf(found);
-    found.children.forEach((child) => {
-      let translation = { x: 0, y: 0 };
-      if ("translation" in child) {
-        translation = child.translation;
+    function findClickedChild(
+      clickPos: { x: number; y: number },
+      children: Node[],
+    ) {
+      // forEach works here since we want to go top down (visibility order, not render order)
+      for (const child of children) {
+        if (nodeToBB(child).contains(clickPos)) {
+          const childClicked = findClickedChild(
+            vec2Sub(clickPos, child.translation),
+            child.children.toArray(),
+          );
+          if (childClicked) {
+            return true;
+          }
+          store.getState().setSelectedNodes([child]);
+          return true;
+        }
       }
-      const bb = nodeToBB(
-        child,
-        vec2Add(translation, { x: pageTranslation * found.width, y: 0 }),
-      );
-      if (!bb) return;
 
-      if (bb.contains(worldPos)) {
-        clicked = true;
-        store.getState().setSelectedNodes([child]);
-        return;
-      }
-    });
+      return false;
+    }
+
+    const clicked = findClickedChild(
+      vec2Sub(worldPos, foundPageBB),
+      foundPage.children.toArray(),
+    );
+
     if (!clicked) {
       store.getState().setSelectedNodes([]);
     }
@@ -263,17 +278,6 @@ class ViewportRenderer {
     context.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
 
     const uiData: UIData[] = [];
-    const addUIData = (data: UIData) => {
-      if ("active" in data && data.active) {
-        uiData.unshift(data);
-        return;
-      }
-      if ("selected" in data && data.selected) {
-        uiData.push(data);
-        return;
-      }
-      uiData.push(data);
-    };
 
     this.#scope((context) => {
       context.scale(devicePixelRatio, devicePixelRatio);
@@ -287,10 +291,20 @@ class ViewportRenderer {
         onRendered(opt) {
           // decide if clickable
           // decide if it needs UI
+          const onActivePage: Map<Node, boolean> = new Map();
+          function isOnActivePage(node: Node) {
+            if (node.type === "page") {
+              return ui.activePage === node.id;
+            }
+            if (!onActivePage.has(node)) {
+              onActivePage.set(node, isOnActivePage(node.parent));
+            }
+            return !!onActivePage.get(node);
+          }
           switch (opt.type) {
             case "page":
               if (ui.activePage !== opt.node.id) return;
-              addUIData({
+              uiData.push({
                 type: "page",
                 node: opt.node,
                 transform: opt.renderInfo.transform,
@@ -300,13 +314,13 @@ class ViewportRenderer {
               });
               break;
             case "rect-like":
-              if (!ui.selection.has(opt.node)) return;
-              addUIData({
+              if (!isOnActivePage(opt.node)) return;
+              uiData.push({
                 type: "rect-like",
                 node: opt.node,
                 transform: opt.renderInfo.transform,
                 path: opt.renderInfo.path,
-                selected: true,
+                selected: ui.selection.has(opt.node),
               });
               break;
           }
@@ -335,7 +349,7 @@ class ViewportRenderer {
           height: this.#canvas.height,
           onWheel: this.#interactivity.onWheel,
           onMouseDown: this.#interactivity.onMouseDown,
-          scaleCell: scaleCell,
+          scaleNode: scaleNode,
           translateCell: translateNode,
         }),
       ),

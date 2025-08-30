@@ -4,7 +4,7 @@ import {
   addCellToPage,
   addNodeFill,
   addPage,
-  removeCell,
+  removeNodeFromParent,
   removeNodeFillAtIndex,
   removePage,
   saveImageToProject,
@@ -47,7 +47,7 @@ export function Inspector() {
 }
 
 function CellInspector({ node }: { node: Cell }) {
-  useHotkeys("backspace", () => removeCell(node));
+  useHotkeys("backspace", () => removeNodeFromParent(node));
   useHotkeys(
     [
       "arrowup",
