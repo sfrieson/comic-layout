@@ -5,7 +5,7 @@ import { WithCleanup } from "../utils/Composition.js";
 import { downloadURL, loadImageFromURL } from "../utils/file.js";
 import { expect } from "../utils/assert.js";
 
-export async function exportPages(project: Project) {
+export async function exportPages(project: Project, name: string = "Comic") {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Failed to get context");
@@ -43,7 +43,7 @@ export async function exportPages(project: Project) {
     context.clearRect(0, 0, canvas.width, canvas.height);
     renderPage(renderInfo, page);
     const url = canvas.toDataURL();
-    downloadURL(url, `Comic - Page ${pageNumber}.png`);
+    downloadURL(url, `${name} - Page ${pageNumber}.png`);
   }
   cleanup.cleanup();
 }

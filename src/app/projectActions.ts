@@ -393,5 +393,6 @@ function requireNode(nodeId: string) {
 
 export function exportProject() {
   const project = requireProject();
-  exportPages(project);
+  const name = store.getState().fileHandle?.name.split(".")[0];
+  exportPages(project, name);
 }
