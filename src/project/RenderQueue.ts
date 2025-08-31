@@ -48,11 +48,14 @@ export class RenderQueue<T extends object> {
 
   removeItem(item: T) {
     let node = this.#end.next;
-    while (node !== this.#end) {
-      if (node.data === item) {
-        this.#removeNode(node);
-        return node;
+    let safety = this.length;
+    while (node !== this.#end && safety-- > 0) {
+      if (node.data !== item) {
+        node = node.next;
+        continue;
       }
+      this.#removeNode(node);
+      return node;
     }
     throw new Error(`${this.name} item not found`);
   }
@@ -143,14 +146,14 @@ export class RenderQueue<T extends object> {
   indexOf(item: T) {
     let current = this.#end.next;
     let counter = 0;
-    while (current !== this.#end) {
+    while (current !== this.#end && counter < this.length) {
       if (current.data === item) {
         return counter;
       }
       current = current.next;
       counter++;
     }
-    return -1;
+    throw new Error(`${this.name} item not found`);
   }
   forEach(callback: (item: T, index: number) => void) {
     let current = this.#end.next;
