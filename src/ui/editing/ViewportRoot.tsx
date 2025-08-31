@@ -7,11 +7,16 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Cell, Page, Rectangle } from "../../project/Project.js";
+import {
+  Cell,
+  Page,
+  PathAlignedText,
+  Rectangle,
+} from "../../project/Project.js";
 import { aabbFromPoints } from "../../utils/viewportUtils.js";
 import { useDrag } from "../hooks.js";
 import type { scaleNode, translateNode } from "../../app/projectActions.js";
-import { Vec2, vec2Div, vec2Mult } from "../../utils/vec2.js";
+import { Vec2, vec2Add, vec2Div, vec2Mult } from "../../utils/vec2.js";
 
 import styles from "./viewport.module.css";
 
@@ -32,7 +37,18 @@ export interface CellData {
   selected: boolean;
 }
 
-export type Data = PageData | CellData;
+interface PathAlignedTextData {
+  type: "text_path-aligned";
+  node: PathAlignedText;
+  lines: {
+    transform: DOMMatrix;
+    translation: Vec2;
+    width: number;
+    height: number;
+  }[];
+}
+
+export type Data = PageData | CellData | PathAlignedTextData;
 
 export function RootSVG({
   data,
@@ -82,6 +98,10 @@ export function RootSVG({
               return <PageComponent key={d.node.id} {...d} />;
             case "rect-like":
               return <RectLikeComponent key={d.node.id} {...d} />;
+            case "text_path-aligned":
+              return <PathAlignedTextComponent key={d.node.id} {...d} />;
+            default:
+              const _unreachable: never = d;
           }
         })}
       </ActionContext.Provider>
@@ -143,6 +163,35 @@ function RectLikeComponent({ node, transform, selected }: CellData) {
       )}
     </Fragment>
   );
+}
+
+function PathAlignedTextComponent(props: PathAlignedTextData) {
+  return (
+    <path
+      data-node-id={props.node.id}
+      d={props.lines
+        .map((line) =>
+          rectToPath(line.translation, line.width, line.height, line.transform),
+        )
+        .join(" ")}
+      className={styles.shape}
+    />
+  );
+}
+
+function rectToPath(
+  translation: Vec2,
+  width: number,
+  height: number,
+  transform: DOMMatrix,
+) {
+  const points = [
+    { x: 0, y: 0 },
+    { x: width, y: 0 },
+    { x: width, y: height },
+    { x: 0, y: height },
+  ].map((p) => applyTransform(transform, vec2Add(translation, p)));
+  return `M ${points.map((p) => `${p.x},${p.y}`).join("L")} Z`;
 }
 
 function BoundingBox({

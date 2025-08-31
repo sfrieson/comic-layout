@@ -10,7 +10,6 @@ import type { ExtractState } from "zustand";
 import {
   aabbFromRect,
   nodeHitTest,
-  nodeToBB,
   screenToWorld,
 } from "../utils/viewportUtils.js";
 import { scaleNode, translateNode } from "./projectActions.js";
@@ -238,6 +237,15 @@ function interactivity() {
     onMouseDown(e: MouseEvent) {
       if (e.button !== 0) return;
 
+      if (e.target instanceof SVGElement && e.target.dataset.nodeId) {
+        const node = expect(
+          store.getState().project?.nodeMap.get(e.target.dataset.nodeId),
+          "Node not found",
+        );
+        store.getState().setSelectedNodes([node]);
+        return;
+      }
+
       select(e.clientX, e.clientY);
     },
   };
@@ -301,20 +309,21 @@ class ViewportRenderer {
             }
             return !!onActivePage.get(node);
           }
+          if (opt.type === "page") {
+            if (ui.activePage !== opt.node.id) return;
+            uiData.push({
+              type: "page",
+              node: opt.node,
+              transform: opt.renderInfo.transform,
+              active: true,
+              width: opt.node.width,
+              height: opt.node.height,
+            });
+            return;
+          }
+          if (!isOnActivePage(opt.node)) return;
           switch (opt.type) {
-            case "page":
-              if (ui.activePage !== opt.node.id) return;
-              uiData.push({
-                type: "page",
-                node: opt.node,
-                transform: opt.renderInfo.transform,
-                active: true,
-                width: opt.node.width,
-                height: opt.node.height,
-              });
-              break;
             case "rect-like":
-              if (!isOnActivePage(opt.node)) return;
               uiData.push({
                 type: "rect-like",
                 node: opt.node,
@@ -323,6 +332,12 @@ class ViewportRenderer {
                 selected: ui.selection.has(opt.node),
               });
               break;
+            case "text_path-aligned":
+              uiData.push(opt);
+              break;
+            default: {
+              const _unreachable: never = opt;
+            }
           }
         },
       };

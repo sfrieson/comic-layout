@@ -8,6 +8,7 @@ import type {
   PathAlignedText,
 } from "../project/Project.js";
 import { expect } from "../utils/assert.js";
+import { Vec2 } from "../utils/vec2.js";
 import { nodeToBB } from "../utils/viewportUtils.js";
 
 export type RenderCallbackOptions =
@@ -25,6 +26,16 @@ export type RenderCallbackOptions =
         transform: DOMMatrix;
         path: Path2D;
       };
+    }
+  | {
+      type: "text_path-aligned";
+      node: PathAlignedText;
+      lines: {
+        transform: DOMMatrix;
+        translation: Vec2;
+        width: number;
+        height: number;
+      }[];
     };
 
 export type RenderCallback = (options: RenderCallbackOptions) => void;
@@ -157,6 +168,12 @@ function renderPathAlignedText(renderInfo: RenderInfo, node: PathAlignedText) {
   context.save();
   context.translate(node.translation.x, node.translation.y);
   context.font = `${node.fontSize}px Courier`;
+  const lines: {
+    transform: DOMMatrix;
+    translation: Vec2;
+    width: number;
+    height: number;
+  }[] = [];
   for (const line of node.lines) {
     for (const fill of node.fills.renderOrder()) {
       if (fill.type !== "color") {
@@ -166,10 +183,23 @@ function renderPathAlignedText(renderInfo: RenderInfo, node: PathAlignedText) {
         continue;
       }
       context.fillStyle = fill.value;
+      context.beginPath();
       context.fillText(line, 0, 0);
     }
+    const metrics = context.measureText(line);
+    lines.push({
+      transform: context.getTransform(),
+      translation: { x: 0, y: -metrics.fontBoundingBoxAscent },
+      width: metrics.width,
+      height: metrics.fontBoundingBoxAscent + metrics.actualBoundingBoxDescent,
+    });
     context.translate(0, node.lineHeight * node.fontSize);
   }
+  renderInfo.onRendered?.({
+    type: node.type,
+    node,
+    lines,
+  });
   context.restore();
 }
 
