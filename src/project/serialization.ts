@@ -44,6 +44,7 @@ function traverse(node: Node | Node[], fn: (node: Node) => void) {
     case "page":
     case "cell":
       traverse(node.children.toArray(), fn);
+      break;
     // Below don't actually have children but are included for completeness
     case "rectangle":
     case "text_path-aligned":

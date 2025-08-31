@@ -16,6 +16,7 @@ import {
   translateNode,
   exportProject,
   addRectangle,
+  addPathAlignedText,
   setNodeTranslation,
 } from "../app/projectActions.js";
 
@@ -32,20 +33,44 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useProject } from "./ProjectContext.js";
 import { useEffect, useMemo, useState } from "react";
 import { useLatestRef } from "../utils/hooks.js";
+import { SplitPane, Pane } from "./components/SplitPane.js";
 
 export function Inspector() {
+  const project = useStore(store, (s) => s.project);
   const selection = useStore(store, (s) => s.ui.selection);
+  const ui = useStore(store, (s) => s.ui);
+
   return (
     <div className="p-2">
-      {(() => {
-        if (!selection.size) return <ProjectInspector />;
-        if (selection.size > 1) {
-          return <div>Multi-Selection</div>;
-        }
+      {project ? (
+        <SplitPane
+          className="p-0"
+          split="horizontal"
+          minSize={150}
+          defaultSize={300}
+          primary="second"
+        >
+          <Pane>
+            {(() => {
+              if (!selection.size) {
+                if (ui.activePage) return <PageInspector />;
+                return <LoadedProjectInspector />;
+              }
+              if (selection.size > 1) {
+                return <div>Multi-Selection</div>;
+              }
 
-        const node = selection.values().next().value!;
-        return <NodeInspector node={node} />;
-      })()}
+              const node = selection.values().next().value!;
+              return <NodeInspector node={node} />;
+            })()}
+          </Pane>
+          <Pane>
+            <NodeTree />
+          </Pane>
+        </SplitPane>
+      ) : (
+        <IdleInspector />
+      )}
     </div>
   );
 }
@@ -71,6 +96,7 @@ function CellInspector({ node }: { node: Cell }) {
       <hr />
       <div className="flex gap-2">
         <button onClick={() => addRectangle(node.id)}>Rect</button>
+        <button onClick={() => addPathAlignedText(node.id)}>Text</button>
       </div>
       <hr />
       <NodeTranslationEditor nodeId={node.id} />
@@ -97,17 +123,6 @@ function PathAlignedTextInspector({ node }: { node: PathAlignedText }) {
       <NodeFillsEditor nodeId={node.id} />
     </div>
   );
-}
-
-function ProjectInspector() {
-  const project = useStore(store, (s) => s.project);
-  const ui = useStore(store, (s) => s.ui);
-
-  if (!project) return <IdleInspector />;
-
-  if (!ui.activePage) return <LoadedProjectInspector />;
-
-  return <PageInspector />;
 }
 
 function IdleInspector() {
@@ -591,5 +606,48 @@ function NumberInput({
         parseChangedInputValue(parseFloat(e.target.value));
       }}
     />
+  );
+}
+
+function NodeTree() {
+  const page = useStore(store, (s) => {
+    const activePage = s.ui.activePage;
+    if (!activePage) return null;
+    const node = expect(s.project?.nodeMap.get(activePage), "No page node");
+    return node;
+  });
+
+  return (
+    <div>
+      <p>NodeTree</p>
+      {!page && <div>No active page</div>}
+      {page && (
+        <TreeNode
+          node={page}
+          onSelect={(node) => store.getState().setSelectedNodes([node])}
+        />
+      )}
+    </div>
+  );
+}
+
+function TreeNode({
+  node,
+  onSelect,
+}: {
+  node: Node;
+  onSelect?: ((node: Node) => void) | undefined;
+}) {
+  return (
+    <div>
+      <p onClick={() => node.type !== "page" && onSelect?.(node)}>
+        {node.type}
+      </p>
+      <div className="pl-2">
+        {node.children.toArray().map((child) => (
+          <TreeNode key={child.id} node={child} onSelect={onSelect} />
+        ))}
+      </div>
+    </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   Node,
   Fills,
   createRectangle,
+  createTextPathAligned as createPathAlignedText,
 } from "../project/Project.js";
 import { RenderQueue } from "../project/RenderQueue.js";
 import { insertAtIndex } from "../utils/array.js";
@@ -457,6 +458,27 @@ export const addRectangle = (nodeId: string) => {
       () => {
         node.children.removeItem(rectangle);
         requireProject().nodeMap.delete(rectangle.id);
+        projectUpdated();
+      },
+    ),
+  );
+};
+
+export const addPathAlignedText = (nodeId: string) => {
+  const { history } = store.getState();
+  const parent = requireNode(nodeId);
+  const pathAlignedText = createPathAlignedText({ parent });
+
+  history.add(
+    history.actionSet(
+      () => {
+        parent.children.push(pathAlignedText);
+        requireProject().nodeMap.set(pathAlignedText.id, pathAlignedText);
+        projectUpdated();
+      },
+      () => {
+        parent.children.removeItem(pathAlignedText);
+        requireProject().nodeMap.delete(pathAlignedText.id);
         projectUpdated();
       },
     ),

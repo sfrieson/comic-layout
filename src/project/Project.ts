@@ -343,22 +343,24 @@ export class PathAlignedText {
     this.lineHeight = opt.lineHeight;
   }
 
-  //
   get children() {
     return new RenderQueue<Node>("child", []);
   }
 }
 
 export function createTextPathAligned(opt: {
-  translation: Vec2;
+  translation?: Vec2;
   parent: Node;
-  alignment: "left" | "center" | "right";
-  alignmentEdge: { x: number }[];
+  alignment?: "left" | "center" | "right";
+  alignmentEdge?: { x: number }[];
   lineHeight?: number;
 }) {
   return new PathAlignedText({
     lineHeight: 1.4,
-    lines: [],
+    lines: ["Text"],
+    alignment: "left",
+    alignmentEdge: [{ x: 0 }],
+    translation: { x: 0, y: 0 },
     ...opt,
     fills: [Fills.createColorFill("#000000")],
     id: uuid(),
@@ -371,11 +373,13 @@ function pathAlignedTextFromSerialized(
   serialized: SerializedPathAlignedText,
   parent: Node,
 ) {
-  return new PathAlignedText({
+  const node = new PathAlignedText({
     ...serialized,
     fills: fillsFromSerialized(serialized.fills),
     parent,
   });
+  project.nodeMap.set(node.id, node);
+  return node;
 }
 
 export type Node = Page | Cell | Rectangle | PathAlignedText;
