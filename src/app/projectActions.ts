@@ -422,6 +422,34 @@ export const setNodeTranslation = (nodeId: string, translation: Vec2) => {
   );
 };
 
+export interface FontInfo {
+  fontSize: number;
+  lineHeight: number;
+}
+export function setNodeFontInfo(nodeId: string, fontInfo: FontInfo) {
+  const { history } = store.getState();
+  const node = requireNode(nodeId);
+  assert("lines" in node, `Cannot set lines on node. Type: ${node.type}`);
+
+  const previousInfo: FontInfo = { ...node };
+
+  history.add(
+    history.actionSet(
+      () => {
+        node.fontSize = fontInfo.fontSize;
+        node.lineHeight = fontInfo.lineHeight;
+        projectUpdated();
+      },
+      () => {
+        node.fontSize = previousInfo.fontSize;
+        node.lineHeight = previousInfo.lineHeight;
+        projectUpdated();
+      },
+      { key: `node-${node.id}-update-font-info` },
+    ),
+  );
+}
+
 export function setNodeLines(nodeId: string, lines: string[]) {
   const { history } = store.getState();
   const node = requireNode(nodeId);

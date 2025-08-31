@@ -19,6 +19,7 @@ import {
   addPathAlignedText,
   setNodeTranslation,
   setNodeLines,
+  setNodeFontInfo,
 } from "../app/projectActions.js";
 
 import { projectAssets, useRecentFiles } from "../app/hooks.js";
@@ -123,6 +124,7 @@ function PathAlignedTextInspector({ node }: { node: PathAlignedText }) {
       <p>Text (Path Aligned)</p>
       <NodeTranslationEditor nodeId={node.id} />
       <NodeFillsEditor nodeId={node.id} />
+      <FontEditor nodeId={node.id} />
       <textarea
         className="whitespace-pre"
         rows={5}
@@ -288,6 +290,45 @@ function NodeTranslationEditor({ nodeId }: { nodeId: string }) {
                 y: value,
               })
             }
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function FontEditor({ nodeId }: { nodeId: string }) {
+  const info: { fontSize: number; lineHeight: number } = useStore(
+    store,
+    (s) => {
+      const node = s.project?.nodeMap.get(nodeId);
+      assert(node?.type === "text_path-aligned", "Note a text node");
+      return node;
+    },
+  );
+
+  function handleChange(partial: Partial<typeof info>) {
+    setNodeFontInfo(nodeId, { ...info, ...partial });
+  }
+
+  return (
+    <div>
+      <p>Font</p>
+      <div className="flex gap-2">
+        <label className="flex gap-2">
+          <NumberInput
+            name="fontSize"
+            value={info.fontSize}
+            onChange={(fontSize) => handleChange({ fontSize })}
+          />
+        </label>
+        <label className="flex gap-2">
+          <NumberInput
+            name="lineHeight"
+            value={info.lineHeight}
+            step={0.1}
+            min={0}
+            onChange={(lineHeight) => handleChange({ lineHeight })}
           />
         </label>
       </div>
@@ -565,7 +606,7 @@ function NumberInput({
   ...props
 }: {
   value: number;
-  onChange: (value: number) => void;
+  onChange?: (value: number) => void;
   scale?: number;
   step?: number;
   inputMode?: "decimal" | "numeric";
