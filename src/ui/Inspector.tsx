@@ -16,11 +16,12 @@ import {
   translateNode,
   exportProject,
   addRectangle,
+  setNodeTranslation,
 } from "../app/projectActions.js";
 
 import { projectAssets, useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
-import { Cell, Fill } from "../project/Project.js";
+import { Cell, Fill, PathAlignedText, Rectangle } from "../project/Project.js";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useProject } from "./ProjectContext.js";
 import { useEffect, useMemo, useState } from "react";
@@ -33,14 +34,20 @@ export function Inspector() {
       {(() => {
         if (!selection.size) return <ProjectInspector />;
         if (selection.size > 1) {
-          return <div>Multi-Selection Inspector</div>;
+          return <div>Multi-Selection</div>;
         }
 
         const node = selection.values().next().value!;
-        if (node.type === "cell") {
-          return <CellInspector node={node} />;
+        switch (node.type) {
+          case "cell":
+            return <CellInspector node={node} />;
+          case "rectangle":
+            return <RectangleInspector node={node} />;
+          case "text_path-aligned":
+            return <PathAlignedTextInspector node={node} />;
+          default:
+            return <div>Selection</div>;
         }
-        return <div>Selection Inspector</div>;
       })()}
     </div>
   );
@@ -70,12 +77,33 @@ function CellInspector({ node }: { node: Cell }) {
   );
   return (
     <div>
-      <p>Cell Inspector</p>
+      <p>Cell</p>
       <hr />
       <div className="flex gap-2">
         <button onClick={() => addRectangle(node.id)}>Rect</button>
       </div>
       <hr />
+      <NodeTranslationEditor nodeId={node.id} />
+      <NodeFillsEditor nodeId={node.id} />
+    </div>
+  );
+}
+
+function RectangleInspector({ node }: { node: Rectangle }) {
+  return (
+    <div>
+      <p>Rectangle</p>
+      <NodeTranslationEditor nodeId={node.id} />
+      <NodeFillsEditor nodeId={node.id} />
+    </div>
+  );
+}
+
+function PathAlignedTextInspector({ node }: { node: PathAlignedText }) {
+  return (
+    <div>
+      <p>Text (Path Aligned)</p>
+      <NodeTranslationEditor nodeId={node.id} />
       <NodeFillsEditor nodeId={node.id} />
     </div>
   );
@@ -150,27 +178,21 @@ function LoadedProjectInspector() {
       <div className="flex gap-2">
         <label className="flex gap-2 items-center">
           <span>W:</span>
-          <input
+          <NumberInput
             name="pageWidth"
             className="w-full"
-            type="number"
             value={pageWidth}
-            onChange={(e) =>
-              setPageDimensions(e.target.valueAsNumber, pageHeight)
-            }
+            onChange={(value) => setPageDimensions(value, pageHeight)}
           />
         </label>
 
         <label className="flex gap-2 items-center">
           <span>H:</span>
-          <input
+          <NumberInput
             name="pageHeight"
             className="w-full"
-            type="number"
             value={pageHeight}
-            onChange={(e) =>
-              setPageDimensions(pageWidth, e.target.valueAsNumber)
-            }
+            onChange={(value) => setPageDimensions(pageWidth, value)}
           />
         </label>
       </div>
@@ -190,11 +212,51 @@ function PageInspector() {
 
   return (
     <div>
-      <p>Page Inspector</p>
+      <p>Page</p>
       <button onClick={() => removePage(page.id)}>Remove Page</button>
       <NodeFillsEditor nodeId={page.id} />
 
       <button onClick={() => addCellToPage(page.id)}>Add cell</button>
+    </div>
+  );
+}
+
+function NodeTranslationEditor({ nodeId }: { nodeId: string }) {
+  const node = expect(
+    useStore(store, (s) => s.project?.nodeMap.get(nodeId)),
+    "Node not found",
+  );
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <label className="flex gap-2">
+          <span>X:</span>
+          <NumberInput
+            name="x"
+            value={node.translation.x}
+            onChange={(value) =>
+              setNodeTranslation(nodeId, {
+                x: value,
+                y: node.translation.y,
+              })
+            }
+          />
+        </label>
+        <label className="flex gap-2">
+          <span>Y:</span>
+          <NumberInput
+            name="y"
+            value={node.translation.y}
+            onChange={(value) =>
+              setNodeTranslation(nodeId, {
+                x: node.translation.x,
+                y: value,
+              })
+            }
+          />
+        </label>
+      </div>
     </div>
   );
 }
@@ -273,17 +335,18 @@ function CommonFillEditor({
     <div className="flex gap-2 h-8">
       {children}
       <div className="h-full">
-        <input
-          type="number"
-          className="h-full p-0"
+        <NumberInput
+          className="h-full"
           style={{ width: "5ch" }}
           name="opacity"
-          value={opacity * 100}
+          scale={100}
+          value={opacity}
           min={0}
-          max={100}
-          step={1}
-          onChange={(e) => {
-            setNodeOpacityAtIndex(nodeId, i, e.target.valueAsNumber / 100);
+          max={1}
+          step={0.01}
+          inputMode="numeric"
+          onChange={(value) => {
+            setNodeOpacityAtIndex(nodeId, i, value);
           }}
         />
       </div>
@@ -454,5 +517,70 @@ function Popover({
     >
       {children}
     </div>
+  );
+}
+
+function NumberInput({
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  scale = 1,
+  inputMode = "decimal",
+  ...props
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  scale?: number;
+  step?: number;
+  inputMode?: "decimal" | "numeric";
+  min?: number;
+  max?: number;
+} & Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "onChange" | "value" | "type" | "inputMode" | "step" | "min" | "max"
+>) {
+  const clamp = (value: number) => {
+    if (min != undefined && value < min) return min;
+    if (max != undefined && value > max) return max;
+    return value;
+  };
+
+  const handleValueChange = (nextValue: number) => {
+    if (Number.isNaN(nextValue)) nextValue = value;
+    nextValue = clamp(nextValue);
+    onChange?.(nextValue);
+  };
+
+  const parseChangedInputValue = (nextValue: number) => {
+    if (Number.isNaN(nextValue)) nextValue = value;
+    nextValue /= scale;
+    handleValueChange(nextValue);
+  };
+
+  return (
+    <input
+      {...props}
+      type="text"
+      value={value * scale}
+      inputMode={inputMode}
+      min={min}
+      max={max}
+      step={step}
+      onKeyDown={(e) => {
+        const multiplier = e.shiftKey ? 10 : 1;
+        if (e.key === "ArrowUp") {
+          handleValueChange(value + step * multiplier);
+        }
+        if (e.key === "ArrowDown") {
+          handleValueChange(value - step * multiplier);
+        }
+        props.onKeyDown?.(e);
+      }}
+      onChange={(e) => {
+        parseChangedInputValue(parseFloat(e.target.value));
+      }}
+    />
   );
 }

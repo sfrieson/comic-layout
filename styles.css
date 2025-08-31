@@ -4,7 +4,7 @@ body {
   overscroll-behavior: none;
 }
 
-@layer theme {
+@layer base {
   input {
     @apply w-full;
     @apply border-2 border-gray-300;
@@ -17,5 +17,16 @@ body {
     @apply focus:ring-2;
     @apply focus:ring-blue-500;
     min-width: 0;
+  }
+
+  button {
+    @apply bg-gray-100;
+    @apply border-2 border-gray-300;
+    @apply text-black;
+    @apply rounded-md;
+    @apply p-2;
+    @apply cursor-pointer;
+    @apply hover:bg-blue-200;
+    @apply active:bg-blue-700;
   }
 }

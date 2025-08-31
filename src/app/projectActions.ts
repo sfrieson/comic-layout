@@ -403,6 +403,24 @@ export const scaleNode = (
   );
 };
 
+export const setNodeTranslation = (nodeId: string, translation: Vec2) => {
+  const { history } = store.getState();
+  const node = requireNode(nodeId);
+  const before = { ...node.translation };
+  history.add(
+    history.actionSet(
+      () => {
+        node.translation = translation;
+        projectUpdated();
+      },
+      () => {
+        node.translation = before;
+        projectUpdated();
+      },
+    ),
+  );
+};
+
 export const translateNode = (nodeId: string, delta: Vec2) => {
   const { history } = store.getState();
   const node = requireNode(nodeId);
