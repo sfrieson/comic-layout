@@ -153,7 +153,24 @@ function renderRectangle(renderInfo: RenderInfo, node: Cell | Rectangle) {
 }
 
 function renderPathAlignedText(renderInfo: RenderInfo, node: PathAlignedText) {
-  // pass;
+  const { context } = renderInfo;
+  context.save();
+  context.translate(node.translation.x, node.translation.y);
+  context.font = `${node.fontSize}px Courier`;
+  for (const line of node.lines) {
+    for (const fill of node.fills.renderOrder()) {
+      if (fill.type !== "color") {
+        console.warn(
+          `Text doesn't yet support non-color fills. Fill type: ${fill.type}`,
+        );
+        continue;
+      }
+      context.fillStyle = fill.value;
+      context.fillText(line, 0, 0);
+    }
+    context.translate(0, node.lineHeight * node.fontSize);
+  }
+  context.restore();
 }
 
 function renderChild(renderInfo: RenderInfo, child: Node) {

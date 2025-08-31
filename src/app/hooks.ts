@@ -18,7 +18,6 @@ export function useEmptyStateHotkeys() {
 export function useEditingHotKeys() {
   useHotkeys("meta+z", (e: KeyboardEvent) => {
     e.preventDefault();
-    console.log("undo");
     app.getState().history.undo();
   });
   useHotkeys("meta+shift+z", (e: KeyboardEvent) => {

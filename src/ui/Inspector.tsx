@@ -18,6 +18,7 @@ import {
   addRectangle,
   addPathAlignedText,
   setNodeTranslation,
+  setNodeLines,
 } from "../app/projectActions.js";
 
 import { projectAssets, useRecentFiles } from "../app/hooks.js";
@@ -116,11 +117,20 @@ function RectangleInspector({ node }: { node: Rectangle }) {
 }
 
 function PathAlignedTextInspector({ node }: { node: PathAlignedText }) {
+  const setLines = (lines: string[]) => setNodeLines(node.id, lines);
   return (
     <div>
       <p>Text (Path Aligned)</p>
       <NodeTranslationEditor nodeId={node.id} />
       <NodeFillsEditor nodeId={node.id} />
+      <textarea
+        className="whitespace-pre"
+        rows={5}
+        value={node.lines.join("\n")}
+        onChange={(e) => {
+          setLines(e.target.value.split("\n"));
+        }}
+      />
     </div>
   );
 }

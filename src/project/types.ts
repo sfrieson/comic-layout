@@ -88,6 +88,7 @@ const serializedPathAlignedTextSchema = z.object({
   alignmentEdge: z.array(z.object({ x: z.number() })),
   lines: z.array(z.string()),
   lineHeight: z.number(),
+  fontSize: z.number(),
   fills: z.array(serializedFillSchema),
   children: z.array(z.string()),
 });

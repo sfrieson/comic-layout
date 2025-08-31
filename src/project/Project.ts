@@ -322,6 +322,7 @@ export class PathAlignedText {
   lines: string[];
   lineHeight: number;
   fills: RenderQueue<Fill>;
+  fontSize: number;
 
   constructor(opt: {
     id: string;
@@ -332,6 +333,7 @@ export class PathAlignedText {
     lines: string[];
     lineHeight: number;
     fills: Fill[];
+    fontSize: number;
   }) {
     this.id = opt.id;
     this.translation = opt.translation;
@@ -341,6 +343,7 @@ export class PathAlignedText {
     this.lines = opt.lines;
     this.fills = new RenderQueue("fill", opt.fills);
     this.lineHeight = opt.lineHeight;
+    this.fontSize = opt.fontSize;
   }
 
   get children() {
@@ -361,6 +364,7 @@ export function createTextPathAligned(opt: {
     alignment: "left",
     alignmentEdge: [{ x: 0 }],
     translation: { x: 0, y: 0 },
+    fontSize: 10,
     ...opt,
     fills: [Fills.createColorFill("#000000")],
     id: uuid(),
@@ -373,6 +377,7 @@ function pathAlignedTextFromSerialized(
   serialized: SerializedPathAlignedText,
   parent: Node,
 ) {
+  serialized.fontSize = 10;
   const node = new PathAlignedText({
     ...serialized,
     fills: fillsFromSerialized(serialized.fills),

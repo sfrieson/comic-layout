@@ -422,6 +422,27 @@ export const setNodeTranslation = (nodeId: string, translation: Vec2) => {
   );
 };
 
+export function setNodeLines(nodeId: string, lines: string[]) {
+  const { history } = store.getState();
+  const node = requireNode(nodeId);
+  assert("lines" in node, `Cannot set lines on node. Type: ${node.type}`);
+
+  const previousLines = Array.from(node.lines);
+  history.add(
+    history.actionSet(
+      () => {
+        node.lines = lines;
+        projectUpdated();
+      },
+      () => {
+        node.lines = previousLines;
+        projectUpdated();
+      },
+      { key: `node-${node.id}-set-lines` },
+    ),
+  );
+}
+
 export const translateNode = (nodeId: string, delta: Vec2) => {
   const { history } = store.getState();
   const node = requireNode(nodeId);
