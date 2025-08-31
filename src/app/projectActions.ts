@@ -12,7 +12,7 @@ import {
 } from "../project/Project.js";
 import { RenderQueue } from "../project/RenderQueue.js";
 import { insertAtIndex } from "../utils/array.js";
-import { vec2Add, vec2Mult } from "../utils/vec2.js";
+import { Vec2, vec2Add, vec2Mult } from "../utils/vec2.js";
 import { PropertySetter } from "../utils/types.js";
 import { exportPages } from "./Exporter.js";
 
@@ -339,8 +339,8 @@ export function addCellToPage(pageId: string) {
 
 export const scaleNode = (
   nodeId: string,
-  scale: { x: number; y: number },
-  translate: { x: number; y: number } = { x: 0, y: 0 },
+  scale: Vec2,
+  translate: Vec2 = { x: 0, y: 0 },
 ) => {
   const { history } = store.getState();
   const node = requireNode(nodeId);
@@ -386,10 +386,10 @@ export const scaleNode = (
       };
       break;
     }
+    case "text_path-aligned":
+    case "page":
+      throw new Error(`Node cannot be scaled: ${node.type}`);
     default: {
-      if (node.type === "page") {
-        throw new Error("Page cannot be scaled"); // ??? Can it?
-      }
       const _unreachable: never = node;
       throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
       break;
@@ -403,10 +403,7 @@ export const scaleNode = (
   );
 };
 
-export const translateNode = (
-  nodeId: string,
-  delta: { x: number; y: number },
-) => {
+export const translateNode = (nodeId: string, delta: Vec2) => {
   const { history } = store.getState();
   const node = requireNode(nodeId);
   const before = { ...node.translation };

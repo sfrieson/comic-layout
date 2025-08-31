@@ -7,6 +7,7 @@ import type { Node, Project } from "../project/Project.js";
 import { loadProjectFile, serializeProject } from "../project/serialization.js";
 import { createFile, openFile, readFile, writeFile } from "../utils/file.js";
 import { createHistory } from "../history/history.js";
+import { Vec2 } from "../utils/vec2.js";
 
 export const store = createStore(
   combine(
@@ -97,7 +98,7 @@ export const store = createStore(
           const timeout = setTimeout(saveNow, 10_000);
           window.addEventListener("beforeunload", saveNow);
         },
-        setZoom: (zoom: number, pan?: { x: number; y: number }) => {
+        setZoom: (zoom: number, pan?: Vec2) => {
           if (zoom < 0.01 || zoom > 32) return;
           if (pan) {
             setUI({ zoom: Math.min(Math.max(0.01, zoom), 32), pan });
@@ -105,7 +106,7 @@ export const store = createStore(
             setUI({ zoom: Math.min(Math.max(0.01, zoom), 32) });
           }
         },
-        setPan: (pan: { x: number; y: number }) => {
+        setPan: (pan: Vec2) => {
           setUI({ pan: { x: Math.round(pan.x), y: Math.round(pan.y) } });
         },
         setActivePage: (activePage: string) => {

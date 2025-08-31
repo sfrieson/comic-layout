@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
+import { Vec2 } from "../utils/vec2.js";
 
 export function useDrag(
   onDrag: (
-    delta: { x: number; y: number },
+    delta: Vec2,
     modifiers: { meta: boolean; alt: boolean; shift: boolean; ctrl: boolean },
   ) => void,
 ) {
   const cbRef = useRef(onDrag);
   cbRef.current = onDrag;
   const [dragging, setDragging] = useState(false);
-  const startRef = useRef<{ x: number; y: number } | null>(null);
+  const startRef = useRef<Vec2 | null>(null);
   useEffect(() => {
     if (!dragging) return;
     const mouseMove = (e: MouseEvent) => {

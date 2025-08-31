@@ -1,14 +1,15 @@
 import type { Node, Project } from "../project/Project.js";
 import { type RenderInfo, renderPage } from "../renderer/Renderer.js";
 import { assert, expect } from "../utils/assert.js";
-import { eventVec2, vec2Add, vec2Mult, vec2Sub } from "../utils/vec2.js";
+import { eventVec2, Vec2, vec2Add, vec2Mult, vec2Sub } from "../utils/vec2.js";
 import { store } from "./App.js";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { RootSVG, type Data as UIData } from "../ui/editing/ViewportRoot.js";
 import type { ExtractState } from "zustand";
 import {
-  aabbFromPoints,
+  aabbFromRect,
+  nodeHitTest,
   nodeToBB,
   screenToWorld,
 } from "../utils/viewportUtils.js";
@@ -154,10 +155,12 @@ function interactivity() {
     let foundPage = null;
     let foundPageBB = null;
     for (const [i, page] of project.pages.entries()) {
-      const bb = aabbFromPoints([
-        { x: page.width * i, y: 0 },
-        { x: page.width * (i + 1), y: page.height },
-      ]);
+      const bb = aabbFromRect({
+        x: page.width * i,
+        y: 0,
+        width: page.width,
+        height: page.height,
+      });
       if (bb.contains(worldPos)) {
         foundPage = page;
         foundPageBB = bb;
@@ -177,13 +180,10 @@ function interactivity() {
 
     // TODO: selection is in the active page. Select from elements in the active page.
 
-    function findClickedChild(
-      clickPos: { x: number; y: number },
-      children: Node[],
-    ) {
+    function findClickedChild(clickPos: Vec2, children: Node[]) {
       // forEach works here since we want to go top down (visibility order, not render order)
       for (const child of children) {
-        if (nodeToBB(child).contains(clickPos)) {
+        if (nodeHitTest(child, clickPos)) {
           const childClicked = findClickedChild(
             vec2Sub(clickPos, child.translation),
             child.children.toArray(),

@@ -1,4 +1,5 @@
 import { assert, expect } from "../utils/assert.js";
+import { Vec2 } from "../utils/vec2.js";
 import { RenderQueue } from "./RenderQueue.js";
 import type {
   SerializedCell,
@@ -8,6 +9,7 @@ import type {
   SerializedPath,
   SerializedFill,
   SerializedRectangle,
+  SerializedPathAlignedText,
 } from "./types.js";
 import { v4 as uuid } from "uuid";
 
@@ -81,7 +83,7 @@ export class Page {
       },
     };
   }
-  set translation(value: { x: number; y: number }) {
+  set translation(value: any) {
     throw new Error("Page translation is not mutable");
   }
 
@@ -147,6 +149,9 @@ function childrenFromSerialized(
       case "rectangle":
         child = rectangleFromSerialized(project, nodeMap, node, parent);
         break;
+      case "text_path-aligned":
+        child = pathAlignedTextFromSerialized(project, nodeMap, node, parent);
+        break;
       default:
         if (node.type === "page") {
           throw new Error("Page cannot have a parent that is not a page");
@@ -161,7 +166,7 @@ function childrenFromSerialized(
 export class Rectangle {
   type = "rectangle" as const;
   id: string;
-  translation: { x: number; y: number };
+  translation: Vec2;
   width: number;
   height: number;
   fills: RenderQueue<Fill>;
@@ -171,7 +176,7 @@ export class Rectangle {
 
   constructor(opt: {
     id: string;
-    translation?: { x: number; y: number };
+    translation?: Vec2;
     width: number;
     height: number;
     fills: Fill[];
@@ -202,7 +207,7 @@ export class Rectangle {
 }
 
 export function createRectangle(opt: {
-  translation?: { x: number; y: number };
+  translation?: Vec2;
   width?: number;
   height?: number;
   fills?: Fill[];
@@ -238,7 +243,7 @@ function rectangleFromSerialized(
 export class Cell {
   type = "cell" as const;
   id: string;
-  translation: { x: number; y: number };
+  translation: Vec2;
   path: Path;
   fills: RenderQueue<Fill>;
   children: RenderQueue<Node>;
@@ -246,7 +251,7 @@ export class Cell {
 
   constructor(opt: {
     id: string;
-    translation?: { x: number; y: number };
+    translation?: Vec2;
     fills: Fill[];
     children: Node[];
     path: Path;
@@ -262,7 +267,7 @@ export class Cell {
 }
 
 export function createCell(opt: {
-  translation?: { x: number; y: number };
+  translation?: Vec2;
   fills?: Fill[];
   children?: Node[];
   path?: Path;
@@ -306,27 +311,88 @@ export function cellFromSerialized(
   return cell;
 }
 
-export type Node = Page | Cell | Rectangle;
+export class PathAlignedText {
+  type = "text_path-aligned" as const;
+  id: string;
+  translation: Vec2;
+  parent: Node;
+
+  alignment: "left" | "center" | "right";
+  alignmentEdge: { x: number }[];
+  lines: string[];
+  lineHeight: number;
+  fills: RenderQueue<Fill>;
+
+  constructor(opt: {
+    id: string;
+    translation: Vec2;
+    parent: Node;
+    alignment: "left" | "center" | "right";
+    alignmentEdge: { x: number }[];
+    lines: string[];
+    lineHeight: number;
+    fills: Fill[];
+  }) {
+    this.id = opt.id;
+    this.translation = opt.translation;
+    this.parent = opt.parent;
+    this.alignment = opt.alignment;
+    this.alignmentEdge = opt.alignmentEdge;
+    this.lines = opt.lines;
+    this.fills = new RenderQueue("fill", opt.fills);
+    this.lineHeight = opt.lineHeight;
+  }
+
+  //
+  get children() {
+    return new RenderQueue<Node>("child", []);
+  }
+}
+
+export function createTextPathAligned(opt: {
+  translation: Vec2;
+  parent: Node;
+  alignment: "left" | "center" | "right";
+  alignmentEdge: { x: number }[];
+  lineHeight?: number;
+}) {
+  return new PathAlignedText({
+    lineHeight: 1.4,
+    lines: [],
+    ...opt,
+    fills: [Fills.createColorFill("#000000")],
+    id: uuid(),
+  });
+}
+
+function pathAlignedTextFromSerialized(
+  project: Project,
+  nodeMap: SeralizedNodeMap,
+  serialized: SerializedPathAlignedText,
+  parent: Node,
+) {
+  return new PathAlignedText({
+    ...serialized,
+    fills: fillsFromSerialized(serialized.fills),
+    parent,
+  });
+}
+
+export type Node = Page | Cell | Rectangle | PathAlignedText;
 
 export class Path {
   type = "path" as const;
   id: string;
-  points: { x: number; y: number }[];
+  points: Vec2[];
   closed: boolean;
 
-  constructor(opt: {
-    id: string;
-    points: { x: number; y: number }[];
-    closed: boolean;
-  }) {
+  constructor(opt: { id: string; points: Vec2[]; closed: boolean }) {
     this.id = opt.id;
     this.points = opt.points;
     this.closed = opt.closed;
   }
 
-  static create(
-    opt: Partial<{ points: { x: number; y: number }[]; closed: boolean }> = {},
-  ) {
+  static create(opt: Partial<{ points: Vec2[]; closed: boolean }> = {}) {
     return new Path({
       id: uuid(),
       points: opt.points ?? [],

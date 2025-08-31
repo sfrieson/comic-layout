@@ -42,12 +42,11 @@ function traverse(node: Node | Node[], fn: (node: Node) => void) {
 
   switch (node.type) {
     case "page":
-      traverse(node.children.toArray(), fn);
-      break;
     case "cell":
       traverse(node.children.toArray(), fn);
-      break;
+    // Below don't actually have children but are included for completeness
     case "rectangle":
+    case "text_path-aligned":
       traverse(node.children.toArray(), fn);
       break;
     default: {
@@ -79,6 +78,15 @@ export function serializeProject(project: Project): SerializedProject {
         break;
       }
       case "rectangle": {
+        const { parent, ...rest } = node;
+        nodes.push({
+          ...rest,
+          fills: node.fills.toArray(),
+          children: node.children.toArray().map((child) => child.id),
+        });
+        break;
+      }
+      case "text_path-aligned": {
         const { parent, ...rest } = node;
         nodes.push({
           ...rest,

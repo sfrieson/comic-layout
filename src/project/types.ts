@@ -79,10 +79,28 @@ const serializedRectangleSchema = z.object({
 });
 
 export type SerializedRectangle = z.infer<typeof serializedRectangleSchema>;
+
+const serializedPathAlignedTextSchema = z.object({
+  type: z.literal("text_path-aligned"),
+  id: z.string(),
+  translation: z.object({ x: z.number(), y: z.number() }),
+  alignment: z.enum(["left", "center", "right"]),
+  alignmentEdge: z.array(z.object({ x: z.number() })),
+  lines: z.array(z.string()),
+  lineHeight: z.number(),
+  fills: z.array(serializedFillSchema),
+  children: z.array(z.string()),
+});
+export type SerializedPathAlignedText = z.infer<
+  typeof serializedPathAlignedTextSchema
+>;
+
+// Nodes above here
 const serializedNodeSchema = z.discriminatedUnion("type", [
   serializedPageSchema,
   serializedCellSchema,
   serializedRectangleSchema,
+  serializedPathAlignedTextSchema,
 ]);
 
 export type SerializedNode = z.infer<typeof serializedNodeSchema>;

@@ -5,6 +5,7 @@ import type {
   Page,
   Project,
   Rectangle,
+  PathAlignedText,
 } from "../project/Project.js";
 import { expect } from "../utils/assert.js";
 import { nodeToBB } from "../utils/viewportUtils.js";
@@ -117,7 +118,7 @@ function renderRectangle(renderInfo: RenderInfo, node: Cell | Rectangle) {
   const { context } = renderInfo;
   const { translation, path, fills } = node;
   const path2d = new Path2D();
-  const bb = expect(nodeToBB(node), "Cell has no path");
+  const bb = expect(nodeToBB(node), "Node has no path, type: " + node.type);
 
   let started = false;
   for (const point of path.points) {
@@ -151,14 +152,23 @@ function renderRectangle(renderInfo: RenderInfo, node: Cell | Rectangle) {
   context.restore();
 }
 
+function renderPathAlignedText(renderInfo: RenderInfo, node: PathAlignedText) {
+  // pass;
+}
+
 function renderChild(renderInfo: RenderInfo, child: Node) {
-  if (child.type === "cell" || child.type === "rectangle") {
-    renderRectangle(renderInfo, child);
-  } else {
-    if (child.type === "page") {
+  switch (child.type) {
+    case "cell":
+    case "rectangle":
+      renderRectangle(renderInfo, child);
+      break;
+    case "text_path-aligned":
+      renderPathAlignedText(renderInfo, child);
+      break;
+    case "page":
       throw new Error("Page should not be a child of a page");
-    }
-    const _unreachable: never = child;
-    throw new Error(`Unexpected node type: ${(_unreachable as Node).type}`);
+    default:
+      const _unreachable: never = child;
+      throw new Error(`Unexpected node type: ${(_unreachable as Node).type}`);
   }
 }

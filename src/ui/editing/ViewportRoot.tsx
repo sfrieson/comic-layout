@@ -11,7 +11,7 @@ import { Cell, Page, Rectangle } from "../../project/Project.js";
 import { aabbFromPoints } from "../../utils/viewportUtils.js";
 import { useDrag } from "../hooks.js";
 import type { scaleNode, translateNode } from "../../app/projectActions.js";
-import { vec2Div, vec2Mult } from "../../utils/vec2.js";
+import { Vec2, vec2Div, vec2Mult } from "../../utils/vec2.js";
 
 import styles from "./viewport.module.css";
 
@@ -157,11 +157,8 @@ function BoundingBox({
   y: number;
   width: number;
   height: number;
-  onScale?: (
-    scale: { x: number; y: number },
-    translate: { x: number; y: number },
-  ) => void;
-  onTranslate?: (delta: { x: number; y: number }) => void;
+  onScale?: (scale: Vec2, translate: Vec2) => void;
+  onTranslate?: (delta: Vec2) => void;
 }) {
   const { onMouseDown } = useDrag((delta) => {
     onTranslate?.(vec2Mult(delta, devicePixelRatio));
@@ -170,7 +167,7 @@ function BoundingBox({
 
   function handleMoveToScale(
     location: HandleLocation,
-    delta: { x: number; y: number },
+    delta: Vec2,
     mirrorDelta = false,
   ) {
     let left = 0;
@@ -293,7 +290,7 @@ function Handle({
   size: number;
   location: HandleLocation;
   onMove?: (
-    delta: { x: number; y: number },
+    delta: Vec2,
     mirror: { shift: boolean; ctrl: boolean; alt: boolean; meta: boolean },
   ) => void;
 }) {
@@ -344,13 +341,13 @@ function handleScale(handle: HandleLocation) {
   throw new Error(`Invalid handle: ${handle}`);
 }
 
-function applyTransform(transform: DOMMatrix, point: { x: number; y: number }) {
+function applyTransform(transform: DOMMatrix, point: Vec2) {
   const x = point.x * transform.a + transform.e;
   const y = point.y * transform.d + transform.f;
   return { x, y };
 }
 
-function pathToSVG(points: { x: number; y: number }[], closed: boolean) {
+function pathToSVG(points: Vec2[], closed: boolean) {
   return `M ${points.map((p) => `${p.x},${p.y}`).join("L")} ${closed ? "Z" : ""}`;
 }
 
