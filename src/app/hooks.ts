@@ -4,7 +4,7 @@ import { projectAssetsTable, projectFilesTable } from "./db.js";
 import { store as app } from "./App.js";
 import { useCallback, useEffect, useState } from "react";
 
-export function useAppHotkeys() {
+export function useEmptyStateHotkeys() {
   useHotkeys("meta+o", (e: KeyboardEvent) => {
     e.preventDefault();
     app.getState().openFile();
@@ -13,8 +13,12 @@ export function useAppHotkeys() {
     e.preventDefault();
     app.getState().newFile();
   });
+}
+
+export function useEditingHotKeys() {
   useHotkeys("meta+z", (e: KeyboardEvent) => {
     e.preventDefault();
+    console.log("undo");
     app.getState().history.undo();
   });
   useHotkeys("meta+shift+z", (e: KeyboardEvent) => {

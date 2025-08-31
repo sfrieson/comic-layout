@@ -21,7 +21,13 @@ import {
 
 import { projectAssets, useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
-import { Cell, Fill, PathAlignedText, Rectangle } from "../project/Project.js";
+import {
+  Cell,
+  Fill,
+  Node,
+  PathAlignedText,
+  Rectangle,
+} from "../project/Project.js";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useProject } from "./ProjectContext.js";
 import { useEffect, useMemo, useState } from "react";
@@ -38,43 +44,27 @@ export function Inspector() {
         }
 
         const node = selection.values().next().value!;
-        switch (node.type) {
-          case "cell":
-            return <CellInspector node={node} />;
-          case "rectangle":
-            return <RectangleInspector node={node} />;
-          case "text_path-aligned":
-            return <PathAlignedTextInspector node={node} />;
-          default:
-            return <div>Selection</div>;
-        }
+        return <NodeInspector node={node} />;
       })()}
     </div>
   );
 }
 
-function CellInspector({ node }: { node: Cell }) {
+function NodeInspector({ node }: { node: Node }) {
   useHotkeys("backspace", () => removeNodeFromParent(node));
-  useHotkeys(
-    [
-      "arrowup",
-      "arrowdown",
-      "arrowleft",
-      "arrowright",
-      "shift+arrowup",
-      "shift+arrowdown",
-      "shift+arrowleft",
-      "shift+arrowright",
-    ],
-    (e: KeyboardEvent) => {
-      const dist = 1 * (e.shiftKey ? 10 : 1);
-      const delta = {
-        x: e.key === "ArrowRight" ? dist : e.key === "ArrowLeft" ? -dist : 0,
-        y: e.key === "ArrowDown" ? dist : e.key === "ArrowUp" ? -dist : 0,
-      };
-      translateNode(node.id, delta);
-    },
-  );
+  switch (node.type) {
+    case "cell":
+      return <CellInspector node={node} />;
+    case "rectangle":
+      return <RectangleInspector node={node} />;
+    case "text_path-aligned":
+      return <PathAlignedTextInspector node={node} />;
+    default:
+      return <div>{node.type}</div>;
+  }
+}
+
+function CellInspector({ node }: { node: Cell }) {
   return (
     <div>
       <p>Cell</p>
@@ -226,7 +216,26 @@ function NodeTranslationEditor({ nodeId }: { nodeId: string }) {
     useStore(store, (s) => s.project?.nodeMap.get(nodeId)),
     "Node not found",
   );
-
+  useHotkeys(
+    [
+      "arrowup",
+      "arrowdown",
+      "arrowleft",
+      "arrowright",
+      "shift+arrowup",
+      "shift+arrowdown",
+      "shift+arrowleft",
+      "shift+arrowright",
+    ],
+    (e: KeyboardEvent) => {
+      const dist = 1 * (e.shiftKey ? 10 : 1);
+      const delta = {
+        x: e.key === "ArrowRight" ? dist : e.key === "ArrowLeft" ? -dist : 0,
+        y: e.key === "ArrowDown" ? dist : e.key === "ArrowUp" ? -dist : 0,
+      };
+      translateNode(node.id, delta);
+    },
+  );
   return (
     <div>
       <div className="flex gap-2">

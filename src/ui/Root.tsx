@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { store } from "../app/App.js";
-import { useAppHotkeys } from "../app/hooks.js";
+import { useEditingHotKeys, useEmptyStateHotkeys } from "../app/hooks.js";
 
 import { SplitPane } from "@rexxars/react-split-pane";
 import { Inspector } from "./Inspector.js";
@@ -34,7 +34,7 @@ export function Root() {
 }
 
 function EmptyState() {
-  useAppHotkeys();
+  useEmptyStateHotkeys();
   return (
     <div>
       <h1>Comic Layout!!!</h1>
@@ -44,6 +44,7 @@ function EmptyState() {
 
 export function ProjectPane({ project }: { project: Project }) {
   const viewport = useStore(store, (state) => state.viewport);
+  useEditingHotKeys();
   const setZoom = useStore(store, (state) => state.setZoom);
   const saveProject = useStore(store, (state) => state.saveProject);
 
