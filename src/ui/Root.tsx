@@ -9,6 +9,7 @@ import { ProjectContext, useProjectContextValue } from "./ProjectContext.js";
 import { Project } from "../project/Project.js";
 import { useHotkeys } from "react-hotkeys-hook";
 import { SplitPane } from "./components/SplitPane.js";
+import { expect } from "../utils/assert.js";
 
 export function Root() {
   const project = useStore(store, (state) => state.project);
@@ -50,6 +51,25 @@ export function ProjectPane({ project }: { project: Project }) {
   useHotkeys("meta+1", (e: KeyboardEvent) => {
     e.preventDefault();
     setZoom(1);
+  });
+  useHotkeys("meta+2", (e: KeyboardEvent) => {
+    e.preventDefault();
+    setZoom(393 / 1280); // rougly the size of my iPhone
+  });
+  useHotkeys("meta+0", (e: KeyboardEvent) => {
+    e.preventDefault();
+    const { width, height } = viewport?.getCanvasSize() ?? {
+      width: 0,
+      height: 0,
+    };
+    if (width === 0 || height === 0) return;
+    const page = expect(project.pages.values().next().value, "No page found");
+    setZoom(
+      Math.min(
+        width / devicePixelRatio / page.width,
+        height / devicePixelRatio / page.height,
+      ),
+    ); // fit to screen
   });
 
   const [viewportContainer, setViewportContainer] =

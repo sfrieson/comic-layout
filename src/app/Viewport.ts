@@ -87,6 +87,13 @@ export class Viewport extends WithCleanup {
     this.#render(); // render immediately because changing canvas sizes clears the canvas
   }
 
+  getCanvasSize() {
+    return {
+      width: this.#canvas.width,
+      height: this.#canvas.height,
+    };
+  }
+
   #imageCacheLoading = new Set<number>();
   #imageCache = new Map<number, HTMLImageElement>();
   async #backgroundLoadImage(assetId: number) {
