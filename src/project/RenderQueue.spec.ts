@@ -14,7 +14,7 @@ describe("RenderQueue", () => {
   it("should enqueue items", () => {
     const data = { id: "1", data: "test" };
     const queue = new RenderQueue<typeof data>("test", []);
-    const node = queue.push(data);
+    const node = queue.addToTop(data);
     expect(queue.length).toBe(1);
     expect(node.data).toEqual(data);
     expect(Array.from(queue.renderOrder())).toEqual([data]);

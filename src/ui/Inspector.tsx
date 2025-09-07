@@ -77,6 +77,72 @@ export function Inspector() {
   );
 }
 
+function InspectorTemplate(props: {
+  name: string;
+  node: Node;
+  tools?: Array<"rectangle" | "text" | "cell">;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p>{props.name}</p>
+      <hr />
+      {props.tools && (
+        <>
+          <div className="flex gap-2">
+            {props.tools?.map((tool) => (
+              <InspectorTool key={tool} node={props.node} tool={tool} />
+            ))}
+          </div>
+          <hr />
+        </>
+      )}
+      {props.children}
+    </div>
+  );
+}
+
+function InspectorTool(props: {
+  node: Node;
+  tool: "rectangle" | "text" | "cell";
+}) {
+  switch (props.tool) {
+    case "rectangle":
+      return (
+        <Button onClick={() => addRectangle(props.node.id)} hotkeys="r">
+          Rect
+        </Button>
+      );
+    case "text":
+      return (
+        <Button onClick={() => addPathAlignedText(props.node.id)} hotkeys="t">
+          Text
+        </Button>
+      );
+    case "cell":
+      return <Button onClick={() => addCellToPage(props.node.id)}>Cell</Button>;
+  }
+  return null;
+}
+
+function Button({
+  children,
+  onClick,
+  hotkeys = [],
+  ...props
+}: {
+  hotkeys?: string | string[];
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  useHotkeys(hotkeys, onClick, {
+    enabled: !!hotkeys && onClick && !props.disabled,
+  });
+  return (
+    <button onClick={onClick} title={hotkeys?.toString()}>
+      {children}
+    </button>
+  );
+}
+
 function NodeInspector({ node }: { node: Node }) {
   useHotkeys("backspace", () => removeNodeFromParent(node));
   switch (node.type) {
@@ -93,35 +159,30 @@ function NodeInspector({ node }: { node: Node }) {
 
 function CellInspector({ node }: { node: Cell }) {
   return (
-    <div>
-      <p>Cell</p>
-      <hr />
-      <div className="flex gap-2">
-        <button onClick={() => addRectangle(node.id)}>Rect</button>
-        <button onClick={() => addPathAlignedText(node.id)}>Text</button>
-      </div>
-      <hr />
+    <InspectorTemplate name="Cell" node={node} tools={["rectangle", "text"]}>
       <NodeTranslationEditor nodeId={node.id} />
       <NodeFillsEditor nodeId={node.id} />
-    </div>
+    </InspectorTemplate>
   );
 }
 
 function RectangleInspector({ node }: { node: Rectangle }) {
   return (
-    <div>
-      <p>Rectangle</p>
+    <InspectorTemplate
+      name="Rectangle"
+      node={node}
+      tools={["text", "rectangle"]}
+    >
       <NodeTranslationEditor nodeId={node.id} />
       <NodeFillsEditor nodeId={node.id} />
-    </div>
+    </InspectorTemplate>
   );
 }
 
 function PathAlignedTextInspector({ node }: { node: PathAlignedText }) {
   const setLines = (lines: string[]) => setNodeLines(node.id, lines);
   return (
-    <div>
-      <p>Text (Path Aligned)</p>
+    <InspectorTemplate name="Text (Path Aligned)" node={node}>
       <NodeTranslationEditor nodeId={node.id} />
       <NodeFillsEditor nodeId={node.id} />
       <FontEditor nodeId={node.id} />
@@ -133,7 +194,7 @@ function PathAlignedTextInspector({ node }: { node: PathAlignedText }) {
           setLines(e.target.value.split("\n"));
         }}
       />
-    </div>
+    </InspectorTemplate>
   );
 }
 
@@ -179,7 +240,7 @@ function LoadedProjectInspector() {
 
   return (
     <div className="p-2">
-      <button onClick={() => exportProject()}>Export</button>
+      <Button onClick={() => exportProject()}>Export</Button>
       <hr />
       <label>
         Name
@@ -214,7 +275,9 @@ function LoadedProjectInspector() {
         </label>
       </div>
 
-      <button onClick={() => addPage()}>Add Page</button>
+      <Button onClick={() => addPage()} hotkeys="p">
+        Add Page
+      </Button>
     </div>
   );
 }
@@ -228,13 +291,14 @@ function PageInspector() {
   });
 
   return (
-    <div>
-      <p>Page</p>
+    <InspectorTemplate
+      name="Page"
+      node={page}
+      tools={["cell", "rectangle", "text"]}
+    >
       <button onClick={() => removePage(page.id)}>Remove Page</button>
       <NodeFillsEditor nodeId={page.id} />
-
-      <button onClick={() => addCellToPage(page.id)}>Add cell</button>
-    </div>
+    </InspectorTemplate>
   );
 }
 
@@ -643,6 +707,7 @@ function NumberInput({
       min={min}
       max={max}
       step={step}
+      autoComplete="off"
       onKeyDown={(e) => {
         const multiplier = e.shiftKey ? 10 : 1;
         if (e.key === "ArrowUp") {

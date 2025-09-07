@@ -159,7 +159,7 @@ function childrenFromSerialized(
         const _unreachable: never = node;
         throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
     }
-    parent.children.push(child);
+    parent.children.addToTop(child);
   });
 }
 
@@ -377,7 +377,6 @@ function pathAlignedTextFromSerialized(
   serialized: SerializedPathAlignedText,
   parent: Node,
 ) {
-  serialized.fontSize = 10;
   const node = new PathAlignedText({
     ...serialized,
     fills: fillsFromSerialized(serialized.fills),
@@ -466,7 +465,7 @@ export class Project {
 
   addCell(page: Page, cell: Cell, index: number | null = null) {
     if (index === null) {
-      page.children.push(cell);
+      page.children.addToTop(cell);
     } else {
       page.children.insertAt(index, cell);
     }

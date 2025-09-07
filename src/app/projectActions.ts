@@ -206,7 +206,7 @@ export const addNodeFill = (nodeId: string) => {
   history.add(
     history.actionSet(
       () => {
-        node.fills.push({ type: "color", value: "#dddddd", opacity: 1 });
+        node.fills.addToTop({ type: "color", value: "#dddddd", opacity: 1 });
         projectUpdated();
       },
       () => {
@@ -228,7 +228,7 @@ export const removeNodeFillAtIndex = (nodeId: string, fillIndex: number) => {
         projectUpdated();
       },
       () => {
-        requireNodeWithFills(nodeId).fills.push(fill);
+        requireNodeWithFills(nodeId).fills.addToTop(fill);
         projectUpdated();
       },
     ),
@@ -500,7 +500,7 @@ export const addRectangle = (nodeId: string) => {
   history.add(
     history.actionSet(
       () => {
-        node.children.push(rectangle);
+        node.children.addToTop(rectangle);
         requireProject().nodeMap.set(rectangle.id, rectangle);
         projectUpdated();
       },
@@ -521,7 +521,7 @@ export const addPathAlignedText = (nodeId: string) => {
   history.add(
     history.actionSet(
       () => {
-        parent.children.push(pathAlignedText);
+        parent.children.addToTop(pathAlignedText);
         requireProject().nodeMap.set(pathAlignedText.id, pathAlignedText);
         projectUpdated();
       },

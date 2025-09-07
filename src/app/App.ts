@@ -9,6 +9,8 @@ import { createFile, openFile, readFile, writeFile } from "../utils/file.js";
 import { createHistory } from "../history/history.js";
 import { Vec2 } from "../utils/vec2.js";
 
+export const SAVING_DISABLED = false;
+
 export const store = createStore(
   combine(
     {
@@ -47,6 +49,10 @@ export const store = createStore(
 
         const json = JSON.stringify(serializeProject(project));
         writesArePending = false; // Now the project data is serialized, any changes need to be picked up
+        if (SAVING_DISABLED) {
+          console.warn("Saving is disabled");
+          return;
+        }
         await writeFile(fileHandle, json);
       }
 

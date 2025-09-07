@@ -21,17 +21,17 @@ export class RenderQueue<T extends object> {
     prev: null as unknown as DLLNode<T>,
   };
 
-  constructor(name: string, data: T[]) {
+  constructor(name: string, data: T[] = []) {
     this.name = name;
     // this.#head = this.#end;
     // this.#tail = this.#end;
     this.length = 0;
     this.#end.next = this.#end;
     this.#end.prev = this.#end;
-    data.forEach((item) => this.push(item));
+    data.forEach((item) => this.#push(item));
   }
 
-  push(data: T) {
+  #push(data: T) {
     const node: DLLNode<T> = {
       data,
       next: this.#end,
@@ -42,6 +42,21 @@ export class RenderQueue<T extends object> {
     }
     this.#end.prev.next = node;
     this.#end.prev = node;
+    this.length++;
+    return node;
+  }
+
+  addToTop(data: T) {
+    const node: DLLNode<T> = {
+      data,
+      next: this.#end.next,
+      prev: this.#end,
+    };
+    if (this.#end.next === this.#end) {
+      this.#end.prev = node;
+    }
+    this.#end.next.prev = node;
+    this.#end.next = node;
     this.length++;
     return node;
   }
@@ -69,7 +84,10 @@ export class RenderQueue<T extends object> {
   }
 
   insertAt(index: number, item: T) {
-    const next = this.#nodeAt(index);
+    if (index > this.length) {
+      throw new Error(`${this.name} index out of bounds`);
+    }
+    const next = this.length > index ? this.#nodeAt(index) : this.#end;
     const newNode: DLLNode<T> = {
       data: item,
       next: next,
