@@ -43,38 +43,6 @@ export abstract class BaseNode {
       fills: fillsFromSerialized(serialized.fills),
     };
   }
-  static childrenFromSerialized(
-    project: Project,
-    nodeMap: SeralizedNodeMap,
-    parent: Node | null,
-    childIds: string[],
-  ) {
-    childIds.forEach((id) => {
-      const node = expect(nodeMap.get(id), "Child not found");
-      let child: Node;
-      if (parent instanceof Project) {
-        throw new Error("Project cannot have a parent node");
-      }
-      switch (node.type) {
-        case "cell":
-          child = cellFromSerialized(project, nodeMap, node, parent);
-          break;
-        case "rectangle":
-          child = rectangleFromSerialized(project, nodeMap, node, parent);
-          break;
-        case "text_path-aligned":
-          child = pathAlignedTextFromSerialized(project, nodeMap, node, parent);
-          break;
-        case "page":
-          child = pageFromSerialized(project, nodeMap, node);
-          break;
-        default:
-          const _unreachable: never = node;
-          throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
-      }
-      (parent ?? project).children.push(child);
-    });
-  }
 }
 
 interface ColorFill {
@@ -182,7 +150,7 @@ export function pageFromSerialized(
     parent: null,
   });
   project.nodeMap.set(page.id, page);
-  BaseNode.childrenFromSerialized(project, nodeMap, page, serialized.children);
+  childrenFromSerialized(project, nodeMap, page, serialized.children);
   return page;
 }
 
@@ -281,7 +249,7 @@ function rectangleFromSerialized(
     parent,
   });
   project.nodeMap.set(rectangle.id, rectangle);
-  BaseNode.childrenFromSerialized(
+  childrenFromSerialized(
     project,
     nodeMap,
     rectangle,
@@ -346,7 +314,7 @@ export function cellFromSerialized(
     parent,
   });
   project.nodeMap.set(cell.id, cell);
-  BaseNode.childrenFromSerialized(project, nodeMap, cell, serialized.children);
+  childrenFromSerialized(project, nodeMap, cell, serialized.children);
   return cell;
 }
 
@@ -415,7 +383,7 @@ function pathAlignedTextFromSerialized(
     children: [],
   });
   project.nodeMap.set(node.id, node);
-  BaseNode.childrenFromSerialized(project, nodeMap, node, serialized.children);
+  childrenFromSerialized(project, nodeMap, node, serialized.children);
   return node;
 }
 

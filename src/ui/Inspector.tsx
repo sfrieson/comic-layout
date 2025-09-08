@@ -150,15 +150,9 @@ function Button({
 function NodeInspector({ node }: { node: Node }) {
   useHotkeys("backspace", () => removeNodeFromParent(node));
   useHotkeys("meta+d", () => duplicateNode(node.id), { preventDefault: true });
-  useHotkeys("[", () => sendNodeBackward(node.id));
-  useHotkeys("]", () => bringNodeForward(node.id));
-  // useHotkeys(
-  //   "*",
-  //   (e: KeyboardEvent) => {
-  //     console.log("NodeInspector", e.key);
-  //   },
-  //   { preventDefault: true },
-  // );
+  useHotkeys("[", () => bringNodeForward(node.id), { useKey: true });
+  useHotkeys("]", () => sendNodeBackward(node.id), { useKey: true });
+
   switch (node.type) {
     case "cell":
       return <CellInspector node={node} />;

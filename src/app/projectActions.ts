@@ -527,9 +527,10 @@ export function bringNodeForward(nodeId: string) {
   const node = requireNode(nodeId);
   const parent = expect(node.parent, "Node does not have a parent");
   const startingIndex = parent.children.indexOf(node);
-  if (startingIndex === 0) return;
-  parent.children.addToTop(node);
-  console.log("bringNodeForward");
+  if (startingIndex === 0) {
+    console.warn("swapping out o fbounds");
+    return;
+  }
 
   const { history } = store.getState();
   history.add(
@@ -550,9 +551,10 @@ export function sendNodeBackward(nodeId: string) {
   const node = requireNode(nodeId);
   const parent = expect(node.parent, "Node does not have a parent");
   const startingIndex = parent.children.indexOf(node);
-  if (startingIndex === 0) return;
-  parent.children.addToTop(node);
-  console.log("sendNodeBackward");
+  if (startingIndex === parent.children.length - 1) {
+    console.warn("swapping out o fbounds");
+    return;
+  }
 
   const { history } = store.getState();
   history.add(

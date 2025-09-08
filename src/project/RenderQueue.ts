@@ -48,23 +48,28 @@ export class RenderQueue<T extends object> {
 
   swapWithPrevious(item: T) {
     const n2 = this.#findNode(item);
+    const node = n2;
 
-    this.#setOrder(n2.prev.prev, n2, n2.prev, n2.next);
+    if (node.prev === this.#end) {
+      throw new Error("Invalid nodes for swap");
+    }
+
+    const swap = node.data;
+    node.data = node.prev.data;
+    node.prev.data = swap;
   }
 
   swapWithNext(item: T) {
     const n3 = this.#findNode(item);
+    const node = n3;
+    if (node.next === this.#end) {
+      throw new Error("Invalid nodes for swap");
+    }
 
-    this.#setOrder(n3.prev, n3.next, n3, n3.next.next);
-  }
+    const swap = node.data;
 
-  #setOrder(n1: DLLNode<T>, n2: DLLNode<T>, n3: DLLNode<T>, n4: DLLNode<T>) {
-    n1.next = n2;
-    n2.prev = n1;
-    n2.next = n3;
-    n3.prev = n2;
-    n3.next = n4;
-    n4.prev = n3;
+    node.data = node.next.data;
+    node.next.data = swap;
   }
 
   addToTop(data: T) {
