@@ -120,6 +120,7 @@ export function renderPage(renderInfo: RenderInfo, page: Page) {
       transform: context.getTransform(),
     },
   });
+
   for (const child of children.renderOrder()) {
     renderChild(renderInfo, child);
   }

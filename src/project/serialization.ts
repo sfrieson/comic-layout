@@ -6,12 +6,13 @@ import {
 import { Project, Node } from "./Project.js";
 import { assert } from "../utils/assert.js";
 import { migrateProject } from "./migrations.js";
+import { traverse } from "./traverse.js";
 
 // const INSTAGRAM_MAX = 1080;
 
 // Instagram thumbnail crop is 3:4
 
-const CURRENT_SERIALIZATION_VERSION = 5;
+const CURRENT_SERIALIZATION_VERSION = 6;
 
 export function loadProjectFile(json?: string): Project {
   let parsed = null;
@@ -32,46 +33,23 @@ export function loadProjectFile(json?: string): Project {
   return new Project(parsed);
 }
 
-function traverse(node: Node | Node[], fn: (node: Node) => void) {
-  if (Array.isArray(node)) {
-    node.forEach((n) => traverse(n, fn));
-    return;
-  }
-
-  fn(node);
-
-  switch (node.type) {
-    case "page":
-    case "cell":
-      traverse(node.children.toArray(), fn);
-      break;
-    // Below don't actually have children but are included for completeness
-    case "rectangle":
-    case "text_path-aligned":
-      traverse(node.children.toArray(), fn);
-      break;
-    default: {
-      const _unreachable: never = node;
-      throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
-    }
-  }
-}
-
-export function serializeProject(project: Project): SerializedProject {
-  const nodes: SerializedNode[] = [];
-  traverse(project.pages, (node) => {
+export function serializeNode(
+  node: Node | Node[],
+  serializedNodes: SerializedNode[] = [],
+): SerializedNode[] {
+  traverse(node, (node) => {
+    const { parent, ...rest } = node;
     switch (node.type) {
       case "page": {
-        nodes.push({
-          ...node,
+        serializedNodes.push({
+          ...rest,
           fills: node.fills.toArray(),
           children: node.children.toArray().map((child) => child.id),
         });
         break;
       }
       case "cell": {
-        const { parent, ...rest } = node;
-        nodes.push({
+        serializedNodes.push({
           ...rest,
           fills: node.fills.toArray(),
           children: node.children.toArray().map((child) => child.id),
@@ -79,8 +57,7 @@ export function serializeProject(project: Project): SerializedProject {
         break;
       }
       case "rectangle": {
-        const { parent, ...rest } = node;
-        nodes.push({
+        serializedNodes.push({
           ...rest,
           fills: node.fills.toArray(),
           children: node.children.toArray().map((child) => child.id),
@@ -88,8 +65,7 @@ export function serializeProject(project: Project): SerializedProject {
         break;
       }
       case "text_path-aligned": {
-        const { parent, ...rest } = node;
-        nodes.push({
+        serializedNodes.push({
           ...rest,
           fills: node.fills.toArray(),
           children: node.children.toArray().map((child) => child.id),
@@ -102,9 +78,14 @@ export function serializeProject(project: Project): SerializedProject {
       }
     }
   });
+
+  return serializedNodes;
+}
+
+export function serializeProject(project: Project): SerializedProject {
   return {
-    pages: project.pages.map((page) => page.id),
-    nodes,
+    children: project.children.toArray().map((node) => node.id),
+    nodes: serializeNode(project.children.toArray()),
     images: Array.from(project.images),
     meta: {
       ...project.meta,

@@ -107,7 +107,7 @@ const serializedNodeSchema = z.discriminatedUnion("type", [
 export type SerializedNode = z.infer<typeof serializedNodeSchema>;
 
 export const serializedProjectSchema = z.object({
-  pages: z.array(z.string()),
+  children: z.array(z.string()),
   nodes: z.array(serializedNodeSchema),
   images: z.array(z.number()),
   meta: z.object({

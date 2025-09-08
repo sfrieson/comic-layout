@@ -1,7 +1,7 @@
 import { store } from "./App.js";
 import { assert, expect } from "../utils/assert.js";
+import { v4 as uuid } from "uuid";
 import {
-  Cell,
   createCell,
   createPage,
   Fill,
@@ -10,29 +10,21 @@ import {
   Fills,
   createRectangle,
   createTextPathAligned as createPathAlignedText,
+  BaseNode,
 } from "../project/Project.js";
 import { RenderQueue } from "../project/RenderQueue.js";
 import { insertAtIndex } from "../utils/array.js";
 import { Vec2, vec2Add, vec2Mult } from "../utils/vec2.js";
 import { PropertySetter } from "../utils/types.js";
 import { exportPages } from "./Exporter.js";
-
-const requireProject = () =>
-  expect(store.getState().project, "Project not found");
-
-const requirePage = (pageId: string) => {
-  const project = requireProject();
-  const page = expect(project.nodeMap.get(pageId), "Page node not found");
-  assert(page.type === "page", "Node is not a page");
-  return page;
-};
-
-const requireCell = (cellId: string) => {
-  const project = requireProject();
-  const cell = expect(project.nodeMap.get(cellId), "Cell node not found");
-  assert(cell.type === "cell", "Node is not a cell");
-  return cell;
-};
+import { traverse, traverseSerializedNode } from "../project/traverse.js";
+import { serializeNode } from "../project/serialization.js";
+import { SerializedNode } from "../project/types.js";
+import {
+  requirePage,
+  requirePageDimensions,
+  requireProject,
+} from "./projectSelectors.js";
 
 const listeners = new Set<(project: Project) => void>();
 
@@ -71,33 +63,24 @@ export const setName = (name: string) => {
 
 export const setPageDimensions = (width: number, height: number) => {
   const { history } = store.getState();
-  const originalDimensions = Object.fromEntries(
-    requireProject().pages.map((page) => [
-      page.id,
-      {
-        width: page.width,
-        height: page.height,
-      },
-    ]),
-  );
+  const originalDimensions = requirePageDimensions();
+
   history.add(
     history.actionSet(
       () => {
-        requireProject().pages.forEach((page) => {
+        for (const [_, page] of requireProject().nodeMap) {
+          if (page.type !== "page") continue;
           page.width = width;
           page.height = height;
-        });
+        }
         projectUpdated();
       },
       () => {
-        requireProject().pages.forEach((page) => {
-          const { width, height } = expect(
-            originalDimensions[page.id],
-            "Original dimensions not found",
-          );
-          page.width = width;
-          page.height = height;
-        });
+        for (const [_, page] of requireProject().nodeMap) {
+          if (page.type !== "page") return;
+          page.width = originalDimensions.width;
+          page.height = originalDimensions.height;
+        }
         projectUpdated();
       },
     ),
@@ -237,10 +220,8 @@ export const removeNodeFillAtIndex = (nodeId: string, fillIndex: number) => {
 
 export const addPage = () => {
   const { history, setActivePage } = store.getState();
-  const existingPage = requireProject().pages.at(0) ?? {
-    width: 1080,
-    height: 1080,
-  };
+  const existingPage = requirePageDimensions();
+
   const page = createPage({
     width: existingPage.width,
     height: existingPage.height,
@@ -267,18 +248,22 @@ export const addPage = () => {
 export const removeNodeFromParent = (node: Node) => {
   const { history } = store.getState();
   assert("parent" in node, "Node does not have a parent");
-  const parent = node.parent;
-  const childIndex = parent?.children.indexOf(node);
+  const parentOrProject = node.parent ?? requireProject();
+  const childIndex = parentOrProject.children.indexOf(node);
   history.add(
     history.actionSet(
       () => {
-        requireProject().nodeMap.get(parent.id)?.children.removeItem(node);
+        const parent = node.parent
+          ? requireNode(node.parent.id)
+          : requireProject();
+        parent.children.removeItem(node);
         projectUpdated();
       },
       () => {
-        requireProject()
-          .nodeMap.get(parent.id)
-          ?.children.insertAt(childIndex, node);
+        const parent = node.parent
+          ? requireNode(node.parent.id)
+          : requireProject();
+        parent.children.insertAt(childIndex, node);
         projectUpdated();
       },
     ),
@@ -290,10 +275,7 @@ export const removePage = (pageId: string) => {
   const project = requireProject();
 
   const deletedPage = requirePage(pageId);
-  const deletedPageIndex = expect(
-    project.pages.indexOf(deletedPage),
-    "Page not found in project pages",
-  );
+  const deletedPageIndex = project.children.indexOf(deletedPage);
   history.add(
     history.actionSet(
       () => {
@@ -306,11 +288,7 @@ export const removePage = (pageId: string) => {
       () => {
         const project = requireProject();
         project.nodeMap.set(pageId, deletedPage);
-        project.pages = insertAtIndex(
-          project.pages,
-          deletedPageIndex,
-          deletedPage,
-        );
+        project.children.insertAt(deletedPageIndex, deletedPage);
         setActivePage(pageId);
         projectUpdated();
       },
@@ -543,4 +521,101 @@ export function exportProject() {
   const project = requireProject();
   const name = store.getState().fileHandle?.name.split(".")[0];
   exportPages(project, name);
+}
+
+export function bringNodeForward(nodeId: string) {
+  const node = requireNode(nodeId);
+  const parent = expect(node.parent, "Node does not have a parent");
+  const startingIndex = parent.children.indexOf(node);
+  if (startingIndex === 0) return;
+  parent.children.addToTop(node);
+  console.log("bringNodeForward");
+
+  const { history } = store.getState();
+  history.add(
+    history.actionSet(
+      () => {
+        parent.children.swapWithPrevious(node);
+        projectUpdated();
+      },
+      () => {
+        parent.children.swapWithNext(node);
+        projectUpdated();
+      },
+    ),
+  );
+}
+
+export function sendNodeBackward(nodeId: string) {
+  const node = requireNode(nodeId);
+  const parent = expect(node.parent, "Node does not have a parent");
+  const startingIndex = parent.children.indexOf(node);
+  if (startingIndex === 0) return;
+  parent.children.addToTop(node);
+  console.log("sendNodeBackward");
+
+  const { history } = store.getState();
+  history.add(
+    history.actionSet(
+      () => {
+        parent.children.swapWithNext(node);
+        projectUpdated();
+      },
+      () => {
+        parent.children.swapWithPrevious(node);
+        projectUpdated();
+      },
+    ),
+  );
+}
+
+export function duplicateNode(nodeId: string) {
+  const originalNode = requireNode(nodeId);
+  const serializedNodes = JSON.parse(
+    JSON.stringify(serializeNode(originalNode)),
+  );
+  // map IDs
+  const oldNewIdMap = new Map<string, SerializedNode>();
+  const idMap = new Map<string, SerializedNode>();
+  traverseSerializedNode(serializedNodes, nodeId, (node) => {
+    const oldId = node.id;
+    node.id = uuid();
+    oldNewIdMap.set(oldId, node);
+    idMap.set(node.id, node);
+  });
+  traverseSerializedNode(
+    serializedNodes,
+    oldNewIdMap.get(nodeId)!.id,
+    (node) => {
+      node.children = node.children.map(
+        (childId) => expect(oldNewIdMap.get(childId), "Child not found").id,
+      );
+    },
+  );
+
+  const { history } = store.getState();
+  history.add(
+    history.actionSet(
+      () => {
+        BaseNode.childrenFromSerialized(
+          requireProject(),
+          idMap,
+          originalNode.parent,
+          [oldNewIdMap.get(nodeId)!.id],
+        );
+        const newNode = requireNode(
+          expect(oldNewIdMap.get(nodeId)!.id, "Node not found in map"),
+        );
+        requireProject().nodeMap.set(newNode.id, newNode);
+        projectUpdated();
+      },
+      () => {
+        const newNode = requireNode(
+          expect(oldNewIdMap.get(nodeId)!.id, "Node not found in map"),
+        );
+        requireProject().nodeMap.delete(newNode.id);
+        projectUpdated();
+      },
+    ),
+  );
 }

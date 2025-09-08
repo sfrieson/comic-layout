@@ -5,11 +5,11 @@ import { useEditingHotKeys, useEmptyStateHotkeys } from "../app/hooks.js";
 import { Inspector } from "./Inspector.js";
 import { useStore } from "zustand";
 import { subscribeToChanges } from "../app/projectActions.js";
+import { requirePageDimensions } from "../app/projectSelectors.js";
 import { ProjectContext, useProjectContextValue } from "./ProjectContext.js";
 import { Project } from "../project/Project.js";
 import { useHotkeys } from "react-hotkeys-hook";
 import { SplitPane } from "./components/SplitPane.js";
-import { expect } from "../utils/assert.js";
 
 export function Root() {
   const project = useStore(store, (state) => state.project);
@@ -63,7 +63,7 @@ export function ProjectPane({ project }: { project: Project }) {
       height: 0,
     };
     if (width === 0 || height === 0) return;
-    const page = expect(project.pages.values().next().value, "No page found");
+    const page = requirePageDimensions();
     setZoom(
       Math.min(
         width / devicePixelRatio / page.width,

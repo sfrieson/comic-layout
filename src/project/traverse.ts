@@ -27,8 +27,9 @@ export function traverse(node: Node | Node[], visitor: Visitor) {
   if (typeof visitor === "function") {
     visitor(node);
   } else {
-    if (visitor[node.type]) {
-      visitor[node.type]?.(node);
+    const nodeVisitor = visitor[node.type];
+    if (nodeVisitor) {
+      (nodeVisitor as (node: Node) => void)(node);
     } else {
       visitor.rest?.(node);
     }
@@ -52,7 +53,7 @@ export function traverse(node: Node | Node[], visitor: Visitor) {
   }
   if (typeof visitor === "object") {
     if (visitor[`${node.type}AfterChildren`]) {
-      visitor[`${node.type}AfterChildren`]?.(node);
+      (visitor[`${node.type}AfterChildren`] as (node: Node) => void)(node);
     } else {
       visitor.restAfterChildren?.(node);
     }
@@ -60,14 +61,25 @@ export function traverse(node: Node | Node[], visitor: Visitor) {
   }
 }
 
-function traverseSerializedNode(
-  nodes: SerializedNode | SerializedNode[],
+export function traverseSerializedNode(
+  nodes: SerializedNode[],
+  currentNodeId: string | string[],
   visitor: (node: SerializedNode) => void,
 ) {
-  if (Array.isArray(nodes)) {
-    nodes.forEach((n) => traverseSerializedNode(n, visitor));
+  const map = new Map<string, SerializedNode>(nodes.map((n) => [n.id, n]));
+  const walk = (node: SerializedNode) => {
+    visitor(node);
+    node.children.forEach((id) => {
+      const child = map.get(id);
+      if (child) {
+        walk(child);
+      }
+    });
+  };
+  if (Array.isArray(currentNodeId)) {
+    currentNodeId.forEach((id) => walk(map.get(id)!));
     return;
+  } else {
+    walk(map.get(currentNodeId)!);
   }
-
-  visitor(nodes);
 }

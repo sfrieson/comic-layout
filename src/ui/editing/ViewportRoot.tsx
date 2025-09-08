@@ -136,6 +136,7 @@ function RectLikeComponent({ node, transform, selected }: CellData) {
       <path
         d={pathToSVG(points, node.path.closed)}
         className={cx(styles.shape, selected && styles.shape_selected)}
+        data-node-id={node.id}
       />
       {selected && (
         <BoundingBox

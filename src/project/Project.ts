@@ -13,6 +13,70 @@ import type {
 } from "./types.js";
 import { v4 as uuid } from "uuid";
 
+interface BaseNodeOpts {
+  id: string;
+  translation?: Vec2;
+  parent: Node | null;
+  fills?: Fill[];
+  children?: Node[];
+}
+export abstract class BaseNode {
+  type: string;
+  id: string;
+  translation: Vec2;
+  fills: RenderQueue<Fill>;
+  parent: Node | null;
+  children: RenderQueue<Node>;
+
+  constructor(opt: BaseNodeOpts & { type: string }) {
+    this.type = opt.type;
+    this.id = opt.id;
+    this.translation = opt.translation ?? { x: 0, y: 0 };
+    this.parent = opt.parent;
+    this.fills = new RenderQueue("fill", opt.fills);
+    this.children = new RenderQueue("child", opt.children);
+  }
+
+  static serializedToOpts(serialized: SerializedNode) {
+    return {
+      ...serialized,
+      fills: fillsFromSerialized(serialized.fills),
+    };
+  }
+  static childrenFromSerialized(
+    project: Project,
+    nodeMap: SeralizedNodeMap,
+    parent: Node | null,
+    childIds: string[],
+  ) {
+    childIds.forEach((id) => {
+      const node = expect(nodeMap.get(id), "Child not found");
+      let child: Node;
+      if (parent instanceof Project) {
+        throw new Error("Project cannot have a parent node");
+      }
+      switch (node.type) {
+        case "cell":
+          child = cellFromSerialized(project, nodeMap, node, parent);
+          break;
+        case "rectangle":
+          child = rectangleFromSerialized(project, nodeMap, node, parent);
+          break;
+        case "text_path-aligned":
+          child = pathAlignedTextFromSerialized(project, nodeMap, node, parent);
+          break;
+        case "page":
+          child = pageFromSerialized(project, nodeMap, node);
+          break;
+        default:
+          const _unreachable: never = node;
+          throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
+      }
+      (parent ?? project).children.push(child);
+    });
+  }
+}
+
 interface ColorFill {
   type: "color";
   value: string;
@@ -58,7 +122,7 @@ function fillsFromSerialized(fills: SerializedFill[]) {
 }
 
 type SeralizedNodeMap = Map<string, SerializedNode>;
-export class Page {
+export class Page extends BaseNode {
   type = "page" as const;
   id: string;
   name: string;
@@ -67,34 +131,18 @@ export class Page {
   fills: RenderQueue<Fill>;
   children: RenderQueue<Node>;
 
-  get translation() {
-    return {
-      get x() {
-        return 0;
-      },
-      set x(value: number) {
-        throw new Error("Page translation is not mutable");
-      },
-      get y() {
-        return 0;
-      },
-      set y(value: number) {
-        throw new Error("Page translation is not mutable");
-      },
-    };
-  }
-  set translation(value: any) {
-    throw new Error("Page translation is not mutable");
-  }
-
-  constructor(opt: {
-    id: string;
-    name?: string;
-    width: number;
-    height: number;
-    fills: Fill[];
-    children: Node[];
-  }) {
+  constructor(
+    opt: BaseNodeOpts & {
+      name: string;
+      width: number;
+      height: number;
+    },
+  ) {
+    super({
+      ...opt,
+      type: "page",
+      parent: null,
+    });
     this.id = opt.id;
     this.name = opt.name ?? "Page";
     this.width = opt.width;
@@ -111,10 +159,13 @@ export function createPage(opt: {
   children?: Node[];
 }) {
   return new Page({
+    name: "Page",
+    fills: [Fills.createColorFill("#ffffff")],
+    children: [],
+    translation: { x: 0, y: 0 },
+    parent: null,
     ...opt,
     id: uuid(),
-    fills: opt.fills ?? [Fills.createColorFill("#ffffff")],
-    children: opt.children ?? [],
   });
 }
 
@@ -125,18 +176,20 @@ export function pageFromSerialized(
 ) {
   const page = new Page({
     ...serialized,
+    ...BaseNode.serializedToOpts(serialized),
     children: [],
-    fills: fillsFromSerialized(serialized.fills),
+    translation: { x: 0, y: 0 },
+    parent: null,
   });
   project.nodeMap.set(page.id, page);
-  childrenFromSerialized(project, nodeMap, page, serialized.children);
+  BaseNode.childrenFromSerialized(project, nodeMap, page, serialized.children);
   return page;
 }
 
 function childrenFromSerialized(
   project: Project,
   nodeMap: SeralizedNodeMap,
-  parent: Node,
+  parent: Node | null,
   childIds: string[],
 ) {
   childIds.forEach((id) => {
@@ -152,44 +205,34 @@ function childrenFromSerialized(
       case "text_path-aligned":
         child = pathAlignedTextFromSerialized(project, nodeMap, node, parent);
         break;
+      case "page":
+        child = pageFromSerialized(project, nodeMap, node);
+        break;
       default:
-        if (node.type === "page") {
-          throw new Error("Page cannot have a parent that is not a page");
-        }
         const _unreachable: never = node;
         throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
     }
-    parent.children.addToTop(child);
+    (parent ?? project).children.push(child);
   });
 }
 
-export class Rectangle {
+export class Rectangle extends BaseNode {
   type = "rectangle" as const;
-  id: string;
-  translation: Vec2;
   width: number;
   height: number;
-  fills: RenderQueue<Fill>;
-  parent: Node;
-  /** Not used, but keeps it consistent with other nodes */
-  children: RenderQueue<Node>;
 
-  constructor(opt: {
-    id: string;
-    translation?: Vec2;
-    width: number;
-    height: number;
-    fills: Fill[];
-    parent: Node;
-    children?: Node[];
-  }) {
-    this.id = opt.id;
-    this.translation = opt.translation ?? { x: 0, y: 0 };
+  constructor(
+    opt: BaseNodeOpts & {
+      width: number;
+      height: number;
+    },
+  ) {
+    super({
+      ...opt,
+      type: "rectangle",
+    });
     this.width = opt.width;
     this.height = opt.height;
-    this.fills = new RenderQueue("fill", opt.fills);
-    this.parent = opt.parent;
-    this.children = new RenderQueue("child", opt.children ?? []);
   }
 
   get path() {
@@ -211,6 +254,7 @@ export function createRectangle(opt: {
   width?: number;
   height?: number;
   fills?: Fill[];
+  children?: Node[];
   parent: Node;
 }) {
   return new Rectangle({
@@ -218,6 +262,7 @@ export function createRectangle(opt: {
     width: 100,
     height: 100,
     fills: [Fills.createColorFill("#dddddd")],
+    children: [],
     ...opt,
     id: uuid(),
   });
@@ -227,42 +272,38 @@ function rectangleFromSerialized(
   project: Project,
   nodeMap: SeralizedNodeMap,
   serialized: SerializedRectangle,
-  parent: Node,
+  parent: Node | null,
 ) {
   const rectangle = new Rectangle({
     ...serialized,
-    fills: fillsFromSerialized(serialized.fills),
+    ...BaseNode.serializedToOpts(serialized),
     children: [],
     parent,
   });
   project.nodeMap.set(rectangle.id, rectangle);
-  childrenFromSerialized(project, nodeMap, rectangle, serialized.children);
+  BaseNode.childrenFromSerialized(
+    project,
+    nodeMap,
+    rectangle,
+    serialized.children ?? [],
+  );
   return rectangle;
 }
 
-export class Cell {
+export class Cell extends BaseNode {
   type = "cell" as const;
-  id: string;
-  translation: Vec2;
   path: Path;
-  fills: RenderQueue<Fill>;
-  children: RenderQueue<Node>;
-  parent: Node;
 
-  constructor(opt: {
-    id: string;
-    translation?: Vec2;
-    fills: Fill[];
-    children: Node[];
-    path: Path;
-    parent: Node;
-  }) {
-    this.id = opt.id;
-    this.translation = opt.translation ?? { x: 0, y: 0 };
-    this.fills = new RenderQueue("fill", opt.fills);
-    this.children = new RenderQueue<Node>("child", opt.children ?? []);
+  constructor(
+    opt: BaseNodeOpts & {
+      path: Path;
+    },
+  ) {
+    super({
+      ...opt,
+      type: "cell",
+    });
     this.path = opt.path;
-    this.parent = opt.parent;
   }
 }
 
@@ -275,21 +316,19 @@ export function createCell(opt: {
 }) {
   return new Cell({
     id: uuid(),
-    ...opt,
-    fills: opt.fills ?? [Fills.createColorFill("#dddddd")],
+    fills: [Fills.createColorFill("#dddddd")],
     children: opt.children ?? [],
-    path:
-      opt.path ??
-      Path.create({
-        points: [
-          { x: 0, y: 0 },
-          { x: 100, y: 0 },
-          { x: 100, y: 100 },
-          { x: 0, y: 100 },
-        ],
-        closed: true,
-      }),
-    parent: opt.parent,
+    path: Path.create({
+      points: [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 100, y: 100 },
+        { x: 0, y: 100 },
+      ],
+      closed: true,
+    }),
+    translation: { x: 0, y: 0 },
+    ...opt,
   });
 }
 
@@ -297,57 +336,48 @@ export function cellFromSerialized(
   project: Project,
   nodeMap: SeralizedNodeMap,
   serialized: SerializedCell,
-  parent: Node,
+  parent: Node | null,
 ) {
   const cell = new Cell({
     ...serialized,
+    ...BaseNode.serializedToOpts(serialized),
     path: Path.fromSerialized(project, nodeMap, serialized.path),
-    fills: fillsFromSerialized(serialized.fills),
     children: [],
     parent,
   });
   project.nodeMap.set(cell.id, cell);
-  childrenFromSerialized(project, nodeMap, cell, serialized.children);
+  BaseNode.childrenFromSerialized(project, nodeMap, cell, serialized.children);
   return cell;
 }
 
-export class PathAlignedText {
+export class PathAlignedText extends BaseNode {
   type = "text_path-aligned" as const;
-  id: string;
-  translation: Vec2;
-  parent: Node;
 
   alignment: "left" | "center" | "right";
   alignmentEdge: { x: number }[];
   lines: string[];
   lineHeight: number;
-  fills: RenderQueue<Fill>;
   fontSize: number;
 
-  constructor(opt: {
-    id: string;
-    translation: Vec2;
-    parent: Node;
-    alignment: "left" | "center" | "right";
-    alignmentEdge: { x: number }[];
-    lines: string[];
-    lineHeight: number;
-    fills: Fill[];
-    fontSize: number;
-  }) {
-    this.id = opt.id;
-    this.translation = opt.translation;
-    this.parent = opt.parent;
+  constructor(
+    opt: BaseNodeOpts & {
+      alignment: "left" | "center" | "right";
+      alignmentEdge: { x: number }[];
+      lines: string[];
+      lineHeight: number;
+      fills: Fill[];
+      fontSize: number;
+    },
+  ) {
+    super({
+      ...opt,
+      type: "text_path-aligned",
+    });
     this.alignment = opt.alignment;
     this.alignmentEdge = opt.alignmentEdge;
     this.lines = opt.lines;
-    this.fills = new RenderQueue("fill", opt.fills);
     this.lineHeight = opt.lineHeight;
     this.fontSize = opt.fontSize;
-  }
-
-  get children() {
-    return new RenderQueue<Node>("child", []);
   }
 }
 
@@ -365,6 +395,7 @@ export function createTextPathAligned(opt: {
     alignmentEdge: [{ x: 0 }],
     translation: { x: 0, y: 0 },
     fontSize: 10,
+    children: [],
     ...opt,
     fills: [Fills.createColorFill("#000000")],
     id: uuid(),
@@ -375,14 +406,16 @@ function pathAlignedTextFromSerialized(
   project: Project,
   nodeMap: SeralizedNodeMap,
   serialized: SerializedPathAlignedText,
-  parent: Node,
+  parent: Node | null,
 ) {
   const node = new PathAlignedText({
     ...serialized,
-    fills: fillsFromSerialized(serialized.fills),
+    ...BaseNode.serializedToOpts(serialized),
     parent,
+    children: [],
   });
   project.nodeMap.set(node.id, node);
+  BaseNode.childrenFromSerialized(project, nodeMap, node, serialized.children);
   return node;
 }
 
@@ -420,7 +453,7 @@ export class Path {
 
 export class Project {
   nodeMap: Map<string, Node> = new Map();
-  pages: Page[];
+  children: RenderQueue<Node>;
   images: Set<number>;
   meta: {
     name: string;
@@ -432,16 +465,15 @@ export class Project {
     const nodeMap = new Map(
       serialized?.nodes.map((node) => [node.id, node]) ?? [],
     );
-
-    this.pages =
-      serialized?.pages.map((id) => {
-        const node = expectSerializedNode(nodeMap.get(id), "page");
-        const page = pageFromSerialized(this, nodeMap, node);
-
-        return page;
-      }) ?? [];
-
     this.images = new Set(serialized?.images ?? []);
+
+    this.children = new RenderQueue("child", []);
+    childrenFromSerialized(this, nodeMap, null, serialized?.children ?? []);
+    // serialized?.children.forEach((id) => {
+    //   const node = expectSerializedNode(nodeMap.get(id), "page");
+    //   const page = pageFromSerialized(this, nodeMap, node);
+    // });
+
     this.meta = {
       name: serialized?.meta?.name ?? "New Project",
       createdAt: serialized?.meta?.createdAt ?? new Date().toISOString(),
@@ -450,12 +482,12 @@ export class Project {
   }
 
   addPage(page: Page) {
-    this.pages.push(page);
+    this.children.addToTop(page);
     this.nodeMap.set(page.id, page);
   }
 
   removePage(page: Page) {
-    this.pages = this.pages.filter((p) => p.id !== page.id);
+    this.children.removeItem(page);
     this.nodeMap.delete(page.id);
     // not deleting other page nodes.
     // They'll be around for undo operations
@@ -476,18 +508,6 @@ export class Project {
     page.children.removeItem(cell);
     this.nodeMap.delete(cell.id);
   }
-}
-
-export function expectNodeType<T extends Node["type"]>(
-  node: Node | undefined,
-  type: T,
-): Extract<Node, { type: T }> {
-  assert(node, `Node not found`);
-
-  return expect(
-    node.type === type,
-    `Node ${node.id} is not a ${type}`,
-  ) as unknown as Extract<Node, { type: T }>;
 }
 
 function assertSerialzedNode<T extends SerializedNode["type"]>(

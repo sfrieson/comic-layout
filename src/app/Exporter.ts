@@ -3,7 +3,7 @@ import type { Project } from "../project/Project.js";
 import { projectAssetsTable } from "./db.js";
 import { WithCleanup } from "../utils/Composition.js";
 import { downloadURL, loadImageFromURL } from "../utils/file.js";
-import { expect } from "../utils/assert.js";
+import { requirePageDimensions } from "./projectSelectors.js";
 
 if (import.meta.hot) {
   import.meta.hot.accept("../renderer/Renderer.ts", (e) => {
@@ -37,15 +37,11 @@ export async function exportPages(project: Project, name: string = "Comic") {
     imageMap,
   };
   let pageNumber = 0;
-  canvas.width = expect(
-    project.pages[0]?.width,
-    "Project must contain pages with dimensions",
-  );
-  canvas.height = expect(
-    project.pages[0]?.height,
-    "Project must contain pages with dimensions",
-  );
-  for (const page of project.pages) {
+  const { width, height } = requirePageDimensions();
+  canvas.width = width;
+  canvas.height = height;
+  for (const page of project.children.toArray()) {
+    if (page.type !== "page") continue;
     pageNumber++;
     context.clearRect(0, 0, canvas.width, canvas.height);
     _renderPage(renderInfo, page);

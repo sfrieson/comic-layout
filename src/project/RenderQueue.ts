@@ -28,10 +28,10 @@ export class RenderQueue<T extends object> {
     this.length = 0;
     this.#end.next = this.#end;
     this.#end.prev = this.#end;
-    data.forEach((item) => this.#push(item));
+    data.forEach((item) => this.push(item));
   }
 
-  #push(data: T) {
+  push(data: T) {
     const node: DLLNode<T> = {
       data,
       next: this.#end,
@@ -44,6 +44,27 @@ export class RenderQueue<T extends object> {
     this.#end.prev = node;
     this.length++;
     return node;
+  }
+
+  swapWithPrevious(item: T) {
+    const n2 = this.#findNode(item);
+
+    this.#setOrder(n2.prev.prev, n2, n2.prev, n2.next);
+  }
+
+  swapWithNext(item: T) {
+    const n3 = this.#findNode(item);
+
+    this.#setOrder(n3.prev, n3.next, n3, n3.next.next);
+  }
+
+  #setOrder(n1: DLLNode<T>, n2: DLLNode<T>, n3: DLLNode<T>, n4: DLLNode<T>) {
+    n1.next = n2;
+    n2.prev = n1;
+    n2.next = n3;
+    n3.prev = n2;
+    n3.next = n4;
+    n4.prev = n3;
   }
 
   addToTop(data: T) {
@@ -61,18 +82,22 @@ export class RenderQueue<T extends object> {
     return node;
   }
 
-  removeItem(item: T) {
+  #findNode(data: T) {
     let node = this.#end.next;
     let safety = this.length;
     while (node !== this.#end && safety-- > 0) {
-      if (node.data !== item) {
-        node = node.next;
-        continue;
+      if (node.data === data) {
+        return node;
       }
-      this.#removeNode(node);
-      return node;
+      node = node.next;
     }
     throw new Error(`${this.name} item not found`);
+  }
+
+  removeItem(item: T) {
+    const node = this.#findNode(item);
+    this.#removeNode(node);
+    return node.data;
   }
 
   removeItemAt(index: number) {

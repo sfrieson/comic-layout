@@ -51,9 +51,11 @@ export const store = createStore(
         writesArePending = false; // Now the project data is serialized, any changes need to be picked up
         if (SAVING_DISABLED) {
           console.warn("Saving is disabled");
+          console.warn(json);
           return;
         }
         await writeFile(fileHandle, json);
+        console.info("saved");
       }
 
       function createProject(json?: string) {
@@ -101,7 +103,7 @@ export const store = createStore(
             window.removeEventListener("beforeunload", saveNow);
           };
 
-          const timeout = setTimeout(saveNow, 10_000);
+          const timeout = setTimeout(saveNow, 3_000);
           window.addEventListener("beforeunload", saveNow);
         },
         setZoom: (zoom: number, pan?: Vec2) => {

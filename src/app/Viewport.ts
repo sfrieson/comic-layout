@@ -152,7 +152,7 @@ function interactivity() {
   function select(x: number, y: number) {
     const { project, ui } = store.getState();
     assert(project, "Project not found");
-    if (!project.pages.length) return;
+    if (!project.children.length) return;
 
     const deselect = () => store.getState().setActivePage("");
 
@@ -160,15 +160,16 @@ function interactivity() {
 
     let foundPage = null;
     let foundPageBB = null;
-    for (const [i, page] of project.pages.entries()) {
+    for (const [i, node] of project.children.toArray().entries()) {
+      if (node.type !== "page") continue;
       const bb = aabbFromRect({
-        x: page.width * i,
+        x: node.width * i,
         y: 0,
-        width: page.width,
-        height: page.height,
+        width: node.width,
+        height: node.height,
       });
       if (bb.contains(worldPos)) {
-        foundPage = page;
+        foundPage = node;
         foundPageBB = bb;
         break;
       }
@@ -299,6 +300,17 @@ class ViewportRenderer {
       context.translate(ui.pan.x, ui.pan.y);
       context.scale(ui.zoom, ui.zoom);
       // const screen = (n: number) => n / devicePixelRatio / ui.zoom;
+      const onActivePage: Map<Node, boolean> = new Map();
+      function isOnActivePage(node: Node | null) {
+        if (!node) return false;
+        if (node.type === "page") {
+          return ui.activePage === node.id;
+        }
+        if (!onActivePage.has(node)) {
+          onActivePage.set(node, isOnActivePage(node.parent));
+        }
+        return !!onActivePage.get(node);
+      }
       const renderInfo: RenderInfo = {
         context,
         project,
@@ -306,16 +318,7 @@ class ViewportRenderer {
         onRendered(opt) {
           // decide if clickable
           // decide if it needs UI
-          const onActivePage: Map<Node, boolean> = new Map();
-          function isOnActivePage(node: Node) {
-            if (node.type === "page") {
-              return ui.activePage === node.id;
-            }
-            if (!onActivePage.has(node)) {
-              onActivePage.set(node, isOnActivePage(node.parent));
-            }
-            return !!onActivePage.get(node);
-          }
+
           if (opt.type === "page") {
             if (ui.activePage !== opt.node.id) return;
             uiData.push({
@@ -344,18 +347,24 @@ class ViewportRenderer {
               break;
             default: {
               const _unreachable: never = opt;
+              throw new Error(
+                `Unknown node type: ${(_unreachable as Node).type}`,
+              );
             }
           }
         },
       };
 
-      for (const [i, page] of project.pages.entries()) {
+      let i = -1;
+      for (const [_, node] of project.children.toArray().entries()) {
+        if (node.type !== "page") continue;
+        i++;
         this.#scope((context) => {
-          const { width } = page;
+          const { width } = node;
           context.translate(width * i, 0);
           this.#scope(() => {
             // TODO: Mask the area of the page that is not visible in the viewport, (but also support removing the mask)
-            _renderPage(renderInfo, page);
+            _renderPage(renderInfo, node);
           });
         });
       }

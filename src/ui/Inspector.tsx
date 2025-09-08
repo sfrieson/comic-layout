@@ -20,7 +20,11 @@ import {
   setNodeTranslation,
   setNodeLines,
   setNodeFontInfo,
+  sendNodeBackward,
+  bringNodeForward,
+  duplicateNode,
 } from "../app/projectActions.js";
+import { requirePageDimensions } from "../app/projectSelectors.js";
 
 import { projectAssets, useRecentFiles } from "../app/hooks.js";
 import { assert, expect } from "../utils/assert.js";
@@ -145,6 +149,16 @@ function Button({
 
 function NodeInspector({ node }: { node: Node }) {
   useHotkeys("backspace", () => removeNodeFromParent(node));
+  useHotkeys("meta+d", () => duplicateNode(node.id), { preventDefault: true });
+  useHotkeys("[", () => sendNodeBackward(node.id));
+  useHotkeys("]", () => bringNodeForward(node.id));
+  // useHotkeys(
+  //   "*",
+  //   (e: KeyboardEvent) => {
+  //     console.log("NodeInspector", e.key);
+  //   },
+  //   { preventDefault: true },
+  // );
   switch (node.type) {
     case "cell":
       return <CellInspector node={node} />;
@@ -235,8 +249,7 @@ function IdleInspector() {
 function LoadedProjectInspector() {
   const project = useProject((p) => p);
   const name = project.meta.name;
-  const pageWidth = project.pages.at(0)?.width ?? 1080;
-  const pageHeight = project.pages.at(0)?.height ?? 1080;
+  const { width: pageWidth, height: pageHeight } = requirePageDimensions();
 
   return (
     <div className="p-2">
@@ -754,10 +767,11 @@ function TreeNode({
   node: Node;
   onSelect?: ((node: Node) => void) | undefined;
 }) {
+  const selected = useStore(store, (s) => s.ui.selection.has(node));
   return (
     <div>
       <p onClick={() => node.type !== "page" && onSelect?.(node)}>
-        {node.type}
+        {selected ? "• " : ""} {node.type}
       </p>
       <div className="pl-2">
         {node.children.toArray().map((child) => (

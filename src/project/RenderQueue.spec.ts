@@ -28,8 +28,8 @@ describe("RenderQueue", () => {
     expect(queue.length).toBe(1);
     expect(n.data).toEqual(datum);
     expect(Array.from(queue.renderOrder())).toEqual([datum2]);
-    const n2 = queue.removeItem(datum2);
-    expect(n2.data).toEqual(datum2);
+    const deleted = queue.removeItem(datum2);
+    expect(deleted).toEqual(datum2);
     expect(queue.length).toBe(0);
     expect(Array.from(queue.renderOrder())).toEqual([]);
   });
@@ -97,5 +97,21 @@ describe("RenderQueue", () => {
     queue.forEach((item, index) => {
       expect(item).toEqual(data[index]);
     });
+  });
+
+  it("should swapWithPrevious", () => {
+    const data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ n }));
+    const queue = new RenderQueue<{ n: number }>("test", data);
+    queue.swapWithPrevious(data[5]!);
+    expect(queue.at(5)).toEqual(data[4]);
+    expect(queue.at(4)).toEqual(data[5]);
+  });
+
+  it("should swapWithNext", () => {
+    const data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ n }));
+    const queue = new RenderQueue<{ n: number }>("test", data);
+    queue.swapWithNext(data[5]!);
+    expect(queue.at(5)).toEqual(data[6]);
+    expect(queue.at(6)).toEqual(data[5]);
   });
 });

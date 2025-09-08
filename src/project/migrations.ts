@@ -12,6 +12,9 @@ export function migrateProject(
     case 4:
       parsed = migratePageFills(parsed);
       parsed.meta.version = 5;
+    case 5:
+      parsed = migratePageParentChildren(parsed);
+      parsed.meta.version = 6;
   }
   /* eslint-enable no-fallthrough */
   return parsed as unknown;
@@ -70,5 +73,13 @@ function migratePageFills(
       delete node.color;
     }
   }
+  return parsed;
+}
+
+function migratePageParentChildren(
+  parsed: Record<string, unknown> & { meta: { version: number } },
+): Record<string, unknown> & { meta: { version: number } } {
+  parsed.children = parsed.pages;
+  delete parsed.pages;
   return parsed;
 }
