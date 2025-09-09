@@ -9,7 +9,7 @@ import { createFile, openFile, readFile, writeFile } from "../utils/file.js";
 import { createHistory } from "../history/history.js";
 import { Vec2 } from "../utils/vec2.js";
 
-export const SAVING_DISABLED = true;
+export const SAVING_DISABLED = false;
 
 export const store = createStore(
   combine(
