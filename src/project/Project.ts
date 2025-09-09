@@ -20,7 +20,7 @@ interface BaseNodeOpts {
   fills?: Fill[];
   children?: Node[];
 }
-export abstract class BaseNode {
+abstract class BaseNode {
   type: string;
   id: string;
   translation: Vec2;
@@ -154,7 +154,7 @@ export function pageFromSerialized(
   return page;
 }
 
-function childrenFromSerialized(
+export function childrenFromSerialized(
   project: Project,
   nodeMap: SeralizedNodeMap,
   parent: Node | null,

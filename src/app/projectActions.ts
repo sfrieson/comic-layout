@@ -10,7 +10,7 @@ import {
   Fills,
   createRectangle,
   createTextPathAligned as createPathAlignedText,
-  BaseNode,
+  childrenFromSerialized,
 } from "../project/Project.js";
 import { RenderQueue } from "../project/RenderQueue.js";
 import { insertAtIndex } from "../utils/array.js";
@@ -465,6 +465,7 @@ export const translateNode = (nodeId: string, delta: Vec2) => {
         node.translation = before;
         projectUpdated();
       },
+      { key: `translate-node-${nodeId}` },
     ),
   );
 };
@@ -599,12 +600,9 @@ export function duplicateNode(nodeId: string) {
   history.add(
     history.actionSet(
       () => {
-        BaseNode.childrenFromSerialized(
-          requireProject(),
-          idMap,
-          originalNode.parent,
-          [oldNewIdMap.get(nodeId)!.id],
-        );
+        childrenFromSerialized(requireProject(), idMap, originalNode.parent, [
+          oldNewIdMap.get(nodeId)!.id,
+        ]);
         const newNode = requireNode(
           expect(oldNewIdMap.get(nodeId)!.id, "Node not found in map"),
         );
