@@ -14,7 +14,7 @@ import {
 } from "../project/Project.js";
 import { RenderQueue } from "../project/RenderQueue.js";
 import { insertAtIndex } from "../utils/array.js";
-import { Vec2, vec2Add, vec2Mult } from "../utils/vec2.js";
+import { Vec2, vec2Add, vec2Mult, vec2Sub } from "../utils/vec2.js";
 import { PropertySetter } from "../utils/types.js";
 import { exportPages } from "./Exporter.js";
 import { traverse, traverseSerializedNode } from "../project/traverse.js";
@@ -452,17 +452,16 @@ export function setNodeLines(nodeId: string, lines: string[]) {
 export const translateNode = (nodeId: string, delta: Vec2) => {
   const { history } = store.getState();
   const node = requireNode(nodeId);
-  const before = { ...node.translation };
+  const translation = { ...node.translation };
 
   history.add(
     history.actionSet(
       () => {
-        node.translation.x += delta.x;
-        node.translation.y += delta.y;
+        node.translation = vec2Add(translation, delta);
         projectUpdated();
       },
       () => {
-        node.translation = before;
+        node.translation = vec2Sub(translation, delta);
         projectUpdated();
       },
       { key: `translate-node-${nodeId}` },
@@ -613,6 +612,7 @@ export function duplicateNode(nodeId: string) {
         const newNode = requireNode(
           expect(oldNewIdMap.get(nodeId)!.id, "Node not found in map"),
         );
+        newNode.parent?.children.removeItem(newNode);
         requireProject().nodeMap.delete(newNode.id);
         projectUpdated();
       },
