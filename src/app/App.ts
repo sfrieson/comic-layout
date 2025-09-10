@@ -103,7 +103,7 @@ export const store = createStore(
             window.removeEventListener("beforeunload", saveNow);
           };
 
-          const timeout = setTimeout(saveNow, 3_000);
+          const timeout = setTimeout(saveNow, 30_000);
           window.addEventListener("beforeunload", saveNow);
         },
         setZoom: (zoom: number, pan?: Vec2) => {

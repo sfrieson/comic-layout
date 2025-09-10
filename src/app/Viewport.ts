@@ -12,7 +12,7 @@ import {
   nodeHitTest,
   screenToWorld,
 } from "../utils/viewportUtils.js";
-import { scaleNode, translateNode } from "./projectActions.js";
+import { scaleNode, translateBy } from "./projectActions.js";
 import { WithCleanup } from "../utils/Composition.js";
 import { projectAssetsTable } from "./db.js";
 import { loadImageFromURL } from "../utils/file.js";
@@ -381,7 +381,7 @@ class ViewportRenderer {
           onWheel: this.#interactivity.onWheel,
           onMouseDown: this.#interactivity.onMouseDown,
           scaleNode: scaleNode,
-          translateCell: translateNode,
+          translateBy: translateBy,
         }),
       ),
     );

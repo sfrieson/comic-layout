@@ -15,7 +15,7 @@ import {
 } from "../../project/Project.js";
 import { aabbFromPoints } from "../../utils/viewportUtils.js";
 import { useDrag } from "../hooks.js";
-import type { scaleNode, translateNode } from "../../app/projectActions.js";
+import type { scaleNode, translateBy } from "../../app/projectActions.js";
 import { Vec2, vec2Add, vec2Div, vec2Mult } from "../../utils/vec2.js";
 
 import styles from "./viewport.module.css";
@@ -57,7 +57,7 @@ export function RootSVG({
   width,
   height,
   scaleNode,
-  translateCell,
+  translateBy,
 }: {
   onWheel: (e: WheelEvent) => void;
   onMouseDown: (e: MouseEvent) => void;
@@ -76,9 +76,9 @@ export function RootSVG({
   const actions = useMemo(
     () => ({
       scaleNode,
-      translateCell,
+      translateBy,
     }),
-    [scaleNode, translateCell],
+    [scaleNode, translateBy],
   );
 
   return (
@@ -130,7 +130,8 @@ function PageComponent({ node, transform, active }: PageData) {
 function RectLikeComponent({ node, transform, selected }: CellData) {
   const points = node.path.points.map((p) => applyTransform(transform, p));
   const bb = aabbFromPoints(points);
-  const { scaleNode: scaleCell, translateCell } = useContext(ActionContext);
+  const { scaleNode: scaleCell, translateBy: translateBy } =
+    useContext(ActionContext);
   return (
     <Fragment>
       <path
@@ -152,8 +153,8 @@ function RectLikeComponent({ node, transform, selected }: CellData) {
             );
           }}
           onTranslate={(delta) => {
-            translateCell(
-              node.id,
+            translateBy(
+              node,
               vec2Div(delta, {
                 x: transform.a,
                 y: transform.d,
@@ -317,8 +318,8 @@ function BoundingBox({
               y={h.y - size / 2}
               size={size}
               location={location}
-              onMove={(delta, { meta }) =>
-                handleMoveToScale(location, delta, meta)
+              onMove={(delta, { alt }) =>
+                handleMoveToScale(location, delta, alt)
               }
             />
           );
@@ -403,10 +404,10 @@ function pathToSVG(points: Vec2[], closed: boolean) {
 
 interface Actions {
   scaleNode: typeof scaleNode;
-  translateCell: typeof translateNode;
+  translateBy: typeof translateBy;
 }
 
 const ActionContext = createContext<Actions>({
   scaleNode: () => {},
-  translateCell: () => {},
+  translateBy: () => {},
 });

@@ -10,14 +10,13 @@ import {
   Fills,
   createRectangle,
   createTextPathAligned as createPathAlignedText,
-  childrenFromSerialized,
+  nodeFromSerialized,
 } from "../project/Project.js";
 import { RenderQueue } from "../project/RenderQueue.js";
-import { insertAtIndex } from "../utils/array.js";
 import { Vec2, vec2Add, vec2Mult, vec2Sub } from "../utils/vec2.js";
 import { PropertySetter } from "../utils/types.js";
 import { exportPages } from "./Exporter.js";
-import { traverse, traverseSerializedNode } from "../project/traverse.js";
+import { traverseSerializedNode } from "../project/traverse.js";
 import { serializeNode } from "../project/serialization.js";
 import { SerializedNode } from "../project/types.js";
 import {
@@ -246,13 +245,14 @@ export const addPage = () => {
 };
 
 export const removeNodeFromParent = (node: Node) => {
-  const { history } = store.getState();
+  const { history, ui } = store.getState();
   assert("parent" in node, "Node does not have a parent");
   const parentOrProject = node.parent ?? requireProject();
   const childIndex = parentOrProject.children.indexOf(node);
   history.add(
     history.actionSet(
       () => {
+        ui.selection.delete(node);
         const parent = node.parent
           ? requireNode(node.parent.id)
           : requireProject();
@@ -260,6 +260,7 @@ export const removeNodeFromParent = (node: Node) => {
         projectUpdated();
       },
       () => {
+        ui.selection.add(node);
         const parent = node.parent
           ? requireNode(node.parent.id)
           : requireProject();
@@ -297,7 +298,7 @@ export const removePage = (pageId: string) => {
 };
 
 export function addCellToPage(pageId: string) {
-  const { history } = store.getState();
+  const { history, ui } = store.getState();
   const project = requireProject();
   const page = requirePage(pageId);
   const cell = createCell({ parent: page });
@@ -306,9 +307,12 @@ export function addCellToPage(pageId: string) {
     history.actionSet(
       () => {
         project.addCell(page, cell);
+        ui.selection = new Set([cell]);
+
         projectUpdated();
       },
       () => {
+        ui.selection.delete(cell);
         project.removeCell(page, cell);
         projectUpdated();
       },
@@ -382,9 +386,8 @@ export const scaleNode = (
   );
 };
 
-export const setNodeTranslation = (nodeId: string, translation: Vec2) => {
+export const moveTo = (node: { translation: Vec2 }, translation: Vec2) => {
   const { history } = store.getState();
-  const node = requireNode(nodeId);
   const before = { ...node.translation };
   history.add(
     history.actionSet(
@@ -449,9 +452,11 @@ export function setNodeLines(nodeId: string, lines: string[]) {
   );
 }
 
-export const translateNode = (nodeId: string, delta: Vec2) => {
+export const translateBy = (
+  node: { id: string; translation: Vec2 },
+  delta: Vec2,
+) => {
   const { history } = store.getState();
-  const node = requireNode(nodeId);
   const translation = { ...node.translation };
 
   history.add(
@@ -464,13 +469,13 @@ export const translateNode = (nodeId: string, delta: Vec2) => {
         node.translation = vec2Sub(translation, delta);
         projectUpdated();
       },
-      { key: `translate-node-${nodeId}` },
+      { key: `translate-node-${node.id}` },
     ),
   );
 };
 
 export const addRectangle = (nodeId: string) => {
-  const { history } = store.getState();
+  const { history, ui } = store.getState();
   const node = requireNode(nodeId);
   const rectangle = createRectangle({
     parent: node,
@@ -480,9 +485,11 @@ export const addRectangle = (nodeId: string) => {
       () => {
         node.children.addToTop(rectangle);
         requireProject().nodeMap.set(rectangle.id, rectangle);
+        ui.selection = new Set([rectangle]);
         projectUpdated();
       },
       () => {
+        ui.selection.delete(rectangle);
         node.children.removeItem(rectangle);
         requireProject().nodeMap.delete(rectangle.id);
         projectUpdated();
@@ -492,7 +499,7 @@ export const addRectangle = (nodeId: string) => {
 };
 
 export const addPathAlignedText = (nodeId: string) => {
-  const { history } = store.getState();
+  const { history, ui } = store.getState();
   const parent = requireNode(nodeId);
   const pathAlignedText = createPathAlignedText({ parent });
 
@@ -501,9 +508,11 @@ export const addPathAlignedText = (nodeId: string) => {
       () => {
         parent.children.addToTop(pathAlignedText);
         requireProject().nodeMap.set(pathAlignedText.id, pathAlignedText);
+        ui.selection = new Set([pathAlignedText]);
         projectUpdated();
       },
       () => {
+        ui.selection.delete(pathAlignedText);
         parent.children.removeItem(pathAlignedText);
         requireProject().nodeMap.delete(pathAlignedText.id);
         projectUpdated();
@@ -576,6 +585,9 @@ export function duplicateNode(nodeId: string) {
   const serializedNodes = JSON.parse(
     JSON.stringify(serializeNode(originalNode)),
   );
+  const project = requireProject();
+  const parent = originalNode.parent ?? project;
+  const index = parent.children.indexOf(originalNode);
   // map IDs
   const oldNewIdMap = new Map<string, SerializedNode>();
   const idMap = new Map<string, SerializedNode>();
@@ -599,12 +611,16 @@ export function duplicateNode(nodeId: string) {
   history.add(
     history.actionSet(
       () => {
-        childrenFromSerialized(requireProject(), idMap, originalNode.parent, [
-          oldNewIdMap.get(nodeId)!.id,
-        ]);
+        nodeFromSerialized(
+          requireProject(),
+          idMap,
+          oldNewIdMap.get(nodeId)!,
+          originalNode.parent,
+        );
         const newNode = requireNode(
           expect(oldNewIdMap.get(nodeId)!.id, "Node not found in map"),
         );
+        parent.children.insertAt(index, newNode);
         requireProject().nodeMap.set(newNode.id, newNode);
         projectUpdated();
       },

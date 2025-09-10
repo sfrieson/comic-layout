@@ -154,32 +154,40 @@ export function pageFromSerialized(
   return page;
 }
 
-export function childrenFromSerialized(
+export function nodeFromSerialized(
+  project: Project,
+  nodeMap: SeralizedNodeMap,
+  node: SerializedNode,
+  parent: Node | null,
+) {
+  switch (node.type) {
+    case "cell":
+      return cellFromSerialized(project, nodeMap, node, parent);
+    case "rectangle":
+      return rectangleFromSerialized(project, nodeMap, node, parent);
+    case "text_path-aligned":
+      return pathAlignedTextFromSerialized(project, nodeMap, node, parent);
+    case "page":
+      return pageFromSerialized(project, nodeMap, node);
+    default:
+      const _unreachable: never = node;
+      throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
+  }
+}
+
+function childrenFromSerialized(
   project: Project,
   nodeMap: SeralizedNodeMap,
   parent: Node | null,
   childIds: string[],
 ) {
   childIds.forEach((id) => {
-    const node = expect(nodeMap.get(id), "Child not found");
-    let child: Node;
-    switch (node.type) {
-      case "cell":
-        child = cellFromSerialized(project, nodeMap, node, parent);
-        break;
-      case "rectangle":
-        child = rectangleFromSerialized(project, nodeMap, node, parent);
-        break;
-      case "text_path-aligned":
-        child = pathAlignedTextFromSerialized(project, nodeMap, node, parent);
-        break;
-      case "page":
-        child = pageFromSerialized(project, nodeMap, node);
-        break;
-      default:
-        const _unreachable: never = node;
-        throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
-    }
+    const child = nodeFromSerialized(
+      project,
+      nodeMap,
+      expect(nodeMap.get(id), "Child not found"),
+      parent,
+    );
     (parent ?? project).children.push(child);
   });
 }
@@ -450,7 +458,7 @@ export class Project {
   }
 
   addPage(page: Page) {
-    this.children.addToTop(page);
+    this.children.push(page);
     this.nodeMap.set(page.id, page);
   }
 

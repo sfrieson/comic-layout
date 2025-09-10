@@ -13,11 +13,11 @@ import {
   setNodeFillToType,
   setNodeOpacityAtIndex,
   setPageDimensions,
-  translateNode,
+  translateBy,
   exportProject,
   addRectangle,
   addPathAlignedText,
-  setNodeTranslation,
+  moveTo,
   setNodeLines,
   setNodeFontInfo,
   sendNodeBackward,
@@ -124,7 +124,11 @@ function InspectorTool(props: {
         </Button>
       );
     case "cell":
-      return <Button onClick={() => addCellToPage(props.node.id)}>Cell</Button>;
+      return (
+        <Button onClick={() => addCellToPage(props.node.id)} hotkeys="c">
+          Cell
+        </Button>
+      );
   }
   return null;
 }
@@ -150,8 +154,8 @@ function Button({
 function NodeInspector({ node }: { node: Node }) {
   useHotkeys("backspace", () => removeNodeFromParent(node));
   useHotkeys("meta+d", () => duplicateNode(node.id), { preventDefault: true });
-  useHotkeys("[", () => bringNodeForward(node.id), { useKey: true });
-  useHotkeys("]", () => sendNodeBackward(node.id), { useKey: true });
+  useHotkeys("[", () => sendNodeBackward(node.id), { useKey: true });
+  useHotkeys("]", () => bringNodeForward(node.id), { useKey: true });
 
   switch (node.type) {
     case "cell":
@@ -195,7 +199,7 @@ function PathAlignedTextInspector({ node }: { node: PathAlignedText }) {
       <NodeFillsEditor nodeId={node.id} />
       <FontEditor nodeId={node.id} />
       <textarea
-        className="whitespace-pre"
+        className="whitespace-pre w-full border border-gray-300 rounded-md p-2"
         rows={5}
         value={node.lines.join("\n")}
         onChange={(e) => {
@@ -331,7 +335,7 @@ function NodeTranslationEditor({ nodeId }: { nodeId: string }) {
         x: e.key === "ArrowRight" ? dist : e.key === "ArrowLeft" ? -dist : 0,
         y: e.key === "ArrowDown" ? dist : e.key === "ArrowUp" ? -dist : 0,
       };
-      translateNode(node.id, delta);
+      translateBy(node, delta);
     },
   );
   return (
@@ -343,7 +347,7 @@ function NodeTranslationEditor({ nodeId }: { nodeId: string }) {
             name="x"
             value={node.translation.x}
             onChange={(value) =>
-              setNodeTranslation(nodeId, {
+              moveTo(node, {
                 x: value,
                 y: node.translation.y,
               })
@@ -356,7 +360,7 @@ function NodeTranslationEditor({ nodeId }: { nodeId: string }) {
             name="y"
             value={node.translation.y}
             onChange={(value) =>
-              setNodeTranslation(nodeId, {
+              moveTo(node, {
                 x: node.translation.x,
                 y: value,
               })
