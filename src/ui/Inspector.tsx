@@ -23,6 +23,7 @@ import {
   sendNodeBackward,
   bringNodeForward,
   duplicateNode,
+  makeDuplicateNode,
 } from "../app/projectActions.js";
 import { requirePageDimensions } from "../app/projectSelectors.js";
 
@@ -32,6 +33,7 @@ import {
   Cell,
   Fill,
   Node,
+  Page,
   PathAlignedText,
   Rectangle,
 } from "../project/Project.js";
@@ -40,6 +42,7 @@ import { useProject } from "./ProjectContext.js";
 import { useEffect, useMemo, useState } from "react";
 import { useLatestRef } from "../utils/hooks.js";
 import { SplitPane, Pane } from "./components/SplitPane.js";
+import { openDialog } from "./components/Dialog.js";
 
 export function Inspector() {
   const project = useStore(store, (s) => s.project);
@@ -84,7 +87,7 @@ export function Inspector() {
 function InspectorTemplate(props: {
   name: string;
   node: Node;
-  tools?: Array<"rectangle" | "text" | "cell">;
+  tools?: Array<"rectangle" | "text" | "cell" | "duplicate">;
   children: React.ReactNode;
 }) {
   return (
@@ -108,7 +111,7 @@ function InspectorTemplate(props: {
 
 function InspectorTool(props: {
   node: Node;
-  tool: "rectangle" | "text" | "cell";
+  tool: "rectangle" | "text" | "cell" | "duplicate";
 }) {
   switch (props.tool) {
     case "rectangle":
@@ -127,6 +130,58 @@ function InspectorTool(props: {
       return (
         <Button onClick={() => addCellToPage(props.node.id)} hotkeys="c">
           Cell
+        </Button>
+      );
+    case "duplicate":
+      return (
+        <Button
+          onClick={() =>
+            openDialog((close) => {
+              const Component = () => {
+                const pages = useProject((p) =>
+                  p.nodeMap
+                    .values()
+                    .filter<Page>((node) => node.type === "page"),
+                );
+                const currentPage = useStore(store, (s) => s.ui.activePage);
+                return (
+                  <div className="p-6 bg-white rounded-md">
+                    <p className="text-lg font-bold mb-6">Duplicate node</p>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const pageId = expect(
+                          e.currentTarget.pageId.value,
+                          "Page ID is required",
+                        ) as string;
+                        makeDuplicateNode(props.node.id, pageId);
+                        close();
+                      }}
+                      className="flex gap-4 flex-col"
+                    >
+                      <div>
+                        <label>
+                          Page:
+                          <select name="pageId" defaultValue={currentPage}>
+                            {[...pages].map((node) => (
+                              <option key={node.id} value={node.id}>
+                                {node.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <button type="submit">Duplicate</button>
+                    </form>
+                  </div>
+                );
+              };
+              return <Component />;
+            })
+          }
+          hotkeys="d"
+        >
+          Duplicate
         </Button>
       );
   }
@@ -171,7 +226,11 @@ function NodeInspector({ node }: { node: Node }) {
 
 function CellInspector({ node }: { node: Cell }) {
   return (
-    <InspectorTemplate name="Cell" node={node} tools={["rectangle", "text"]}>
+    <InspectorTemplate
+      name="Cell"
+      node={node}
+      tools={["rectangle", "text", "duplicate"]}
+    >
       <NodeTranslationEditor nodeId={node.id} />
       <NodeFillsEditor nodeId={node.id} />
     </InspectorTemplate>
@@ -183,7 +242,7 @@ function RectangleInspector({ node }: { node: Rectangle }) {
     <InspectorTemplate
       name="Rectangle"
       node={node}
-      tools={["text", "rectangle"]}
+      tools={["text", "rectangle", "duplicate"]}
     >
       <NodeTranslationEditor nodeId={node.id} />
       <NodeFillsEditor nodeId={node.id} />
@@ -194,7 +253,11 @@ function RectangleInspector({ node }: { node: Rectangle }) {
 function PathAlignedTextInspector({ node }: { node: PathAlignedText }) {
   const setLines = (lines: string[]) => setNodeLines(node.id, lines);
   return (
-    <InspectorTemplate name="Text (Path Aligned)" node={node}>
+    <InspectorTemplate
+      name="Text (Path Aligned)"
+      node={node}
+      tools={["duplicate"]}
+    >
       <NodeTranslationEditor nodeId={node.id} />
       <NodeFillsEditor nodeId={node.id} />
       <FontEditor nodeId={node.id} />

@@ -11,6 +11,7 @@ import {
   createRectangle,
   createTextPathAligned as createPathAlignedText,
   nodeFromSerialized,
+  createDuplicatedNode,
 } from "../project/Project.js";
 import { RenderQueue } from "../project/RenderQueue.js";
 import { Vec2, vec2Add, vec2Mult, vec2Sub } from "../utils/vec2.js";
@@ -371,6 +372,7 @@ export const scaleNode = (
     }
     case "text_path-aligned":
     case "page":
+    case "duplicated":
       throw new Error(`Node cannot be scaled: ${node.type}`);
     default: {
       const _unreachable: never = node;
@@ -521,9 +523,16 @@ export const addPathAlignedText = (nodeId: string) => {
   );
 };
 
-function requireNode(nodeId: string) {
+function requireNode<Type extends Node["type"] = Node["type"]>(
+  nodeId: string,
+  type?: Type,
+) {
   const project = requireProject();
-  return expect(project.nodeMap.get(nodeId), "Node not found");
+  const node = expect(project.nodeMap.get(nodeId), "Node not found");
+  if (type && node.type !== type) {
+    throw new Error(`Node is not a ${type}: ${node.type}`);
+  }
+  return node as Extract<Node, { type: Type }>;
 }
 
 export function exportProject() {
@@ -630,6 +639,42 @@ export function duplicateNode(nodeId: string) {
         );
         newNode.parent?.children.removeItem(newNode);
         requireProject().nodeMap.delete(newNode.id);
+        projectUpdated();
+      },
+    ),
+  );
+}
+
+export function makeDuplicateNode(nodeId: string, pageId: string) {
+  const { history, ui } = store.getState();
+  const node = requireNode(nodeId);
+  const page = requirePage(pageId);
+  const project = requireProject();
+  const targetPage = requireNode(pageId, "page");
+  const currentPage = requirePage(ui.activePage);
+
+  // start with where the node is relative to the target page.
+  const nodeDelta = vec2Sub(currentPage.translation, targetPage.translation);
+
+  const duplicateNode = createDuplicatedNode({
+    parent: page,
+    refId: node.id,
+    translation: nodeDelta,
+  });
+  project.nodeMap.set(duplicateNode.id, duplicateNode);
+  projectUpdated();
+  history.add(
+    history.actionSet(
+      () => {
+        // TODO: Does the project need a ref map to help graph resolution?
+        targetPage.children.addToTop(duplicateNode);
+        ui.selection = new Set([duplicateNode]);
+        ui.activePage = page.id;
+        projectUpdated();
+      },
+      () => {
+        targetPage.children.removeItem(duplicateNode);
+        ui.selection.delete(duplicateNode);
         projectUpdated();
       },
     ),

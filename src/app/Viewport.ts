@@ -1,5 +1,5 @@
 import type { Node, Project } from "../project/Project.js";
-import { type RenderInfo, renderPage } from "../renderer/Renderer.js";
+import { type RenderInfo, renderNode } from "../renderer/Renderer.js";
 import { assert, expect } from "../utils/assert.js";
 import { eventVec2, Vec2, vec2Add, vec2Mult, vec2Sub } from "../utils/vec2.js";
 import { store } from "./App.js";
@@ -260,7 +260,7 @@ function interactivity() {
 }
 
 // supports over HMR
-let _renderPage = renderPage;
+let _renderNode = renderNode;
 /** Manages rendering the screen of the application, which could be multiple pages as well as UI elements. */
 class ViewportRenderer {
   #canvas: HTMLCanvasElement;
@@ -311,6 +311,7 @@ class ViewportRenderer {
         }
         return !!onActivePage.get(node);
       }
+      const alreadyAccountedFor = new Set<Node>();
       const renderInfo: RenderInfo = {
         context,
         project,
@@ -318,6 +319,9 @@ class ViewportRenderer {
         onRendered(opt) {
           // decide if clickable
           // decide if it needs UI
+          // Referenced nodes are rendered multiple times, so we need to deduplicate them.
+          if (alreadyAccountedFor.has(opt.node)) return;
+          alreadyAccountedFor.add(opt.node);
 
           if (opt.type === "page") {
             if (ui.activePage !== opt.node.id) return;
@@ -364,7 +368,7 @@ class ViewportRenderer {
           context.translate(width * i, 0);
           this.#scope(() => {
             // TODO: Mask the area of the page that is not visible in the viewport, (but also support removing the mask)
-            _renderPage(renderInfo, node);
+            _renderNode(renderInfo, node);
           });
         });
       }
@@ -390,6 +394,6 @@ class ViewportRenderer {
 
 if (import.meta.hot) {
   import.meta.hot.accept("../renderer/Renderer.ts", (e) => {
-    _renderPage = e?.renderPage;
+    _renderNode = e?.renderNode;
   });
 }

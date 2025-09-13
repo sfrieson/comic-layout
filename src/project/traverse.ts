@@ -46,6 +46,11 @@ export function traverse(node: Node | Node[], visitor: Visitor) {
     case "text_path-aligned":
       traverse(node.children.toArray(), visitor);
       break;
+    case "duplicated":
+      traverse(node.children.toArray(), visitor);
+      // TODO It's questionable whether the referenced node should be traversed. Add config?
+      console.warn("Duplicated node's referenced node is not traversed");
+      break;
     default: {
       const _unreachable: never = node;
       throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);

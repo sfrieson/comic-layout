@@ -6,6 +6,7 @@ import type {
   Project,
   Rectangle,
   PathAlignedText,
+  DuplicatedNode,
 } from "../project/Project.js";
 import { expect } from "../utils/assert.js";
 import { Vec2 } from "../utils/vec2.js";
@@ -107,7 +108,7 @@ function fillRect(
   cleanup();
 }
 
-export function renderPage(renderInfo: RenderInfo, page: Page) {
+function renderPage(renderInfo: RenderInfo, page: Page) {
   const { width, height, fills, children } = page;
   const { context } = renderInfo;
   for (const fill of fills.renderOrder()) {
@@ -122,7 +123,7 @@ export function renderPage(renderInfo: RenderInfo, page: Page) {
   });
 
   for (const child of children.renderOrder()) {
-    renderChild(renderInfo, child);
+    renderNode(renderInfo, child);
   }
 }
 
@@ -159,7 +160,7 @@ function renderRectangle(renderInfo: RenderInfo, node: Cell | Rectangle) {
     },
   });
   for (const child of node.children.renderOrder()) {
-    renderChild(renderInfo, child);
+    renderNode(renderInfo, child);
   }
   context.restore();
 }
@@ -204,7 +205,16 @@ function renderPathAlignedText(renderInfo: RenderInfo, node: PathAlignedText) {
   context.restore();
 }
 
-function renderChild(renderInfo: RenderInfo, child: Node) {
+function renderDuplicatedNode(renderInfo: RenderInfo, node: DuplicatedNode) {
+  const { context, project } = renderInfo;
+  context.save();
+  context.translate(node.translation.x, node.translation.y);
+  renderNode(renderInfo, project.nodeMap.get(node.refId)!);
+  // TODO Fills, children, etc.
+  context.restore();
+}
+
+export function renderNode(renderInfo: RenderInfo, child: Node) {
   switch (child.type) {
     case "cell":
     case "rectangle":
@@ -214,7 +224,11 @@ function renderChild(renderInfo: RenderInfo, child: Node) {
       renderPathAlignedText(renderInfo, child);
       break;
     case "page":
-      throw new Error("Page should not be a child of a page");
+      renderPage(renderInfo, child);
+      break;
+    case "duplicated":
+      renderDuplicatedNode(renderInfo, child);
+      break;
     default:
       const _unreachable: never = child;
       throw new Error(`Unexpected node type: ${(_unreachable as Node).type}`);

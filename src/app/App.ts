@@ -127,19 +127,3 @@ export const store = createStore(
     },
   ),
 );
-
-// if (import.meta.hot) {
-//   let viewport: Viewport | null = null;
-//   let project: Project | null = null;
-//   import.meta.hot.dispose(() => {
-//     viewport = store.getState().viewport;
-//     project = store.getState().project;
-//   });
-//   import.meta.hot.accept(() => {
-//     console.log("App changed");
-//     store.setState({
-//       viewport,
-//       project,
-//     });
-//   });
-// }

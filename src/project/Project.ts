@@ -10,6 +10,7 @@ import type {
   SerializedFill,
   SerializedRectangle,
   SerializedPathAlignedText,
+  SerializedDuplicatedNode,
 } from "./types.js";
 import { v4 as uuid } from "uuid";
 
@@ -40,6 +41,7 @@ abstract class BaseNode {
   static serializedToOpts(serialized: SerializedNode) {
     return {
       ...serialized,
+      children: [],
       fills: fillsFromSerialized(serialized.fills),
     };
   }
@@ -145,7 +147,6 @@ export function pageFromSerialized(
   const page = new Page({
     ...serialized,
     ...BaseNode.serializedToOpts(serialized),
-    children: [],
     translation: { x: 0, y: 0 },
     parent: null,
   });
@@ -169,6 +170,8 @@ export function nodeFromSerialized(
       return pathAlignedTextFromSerialized(project, nodeMap, node, parent);
     case "page":
       return pageFromSerialized(project, nodeMap, node);
+    case "duplicated":
+      return duplicatedNodeFromSerialized(project, nodeMap, node, parent);
     default:
       const _unreachable: never = node;
       throw new Error(`Unknown node type: ${(_unreachable as Node).type}`);
@@ -253,7 +256,6 @@ function rectangleFromSerialized(
   const rectangle = new Rectangle({
     ...serialized,
     ...BaseNode.serializedToOpts(serialized),
-    children: [],
     parent,
   });
   project.nodeMap.set(rectangle.id, rectangle);
@@ -318,7 +320,6 @@ export function cellFromSerialized(
     ...serialized,
     ...BaseNode.serializedToOpts(serialized),
     path: Path.fromSerialized(project, nodeMap, serialized.path),
-    children: [],
     parent,
   });
   project.nodeMap.set(cell.id, cell);
@@ -388,14 +389,47 @@ function pathAlignedTextFromSerialized(
     ...serialized,
     ...BaseNode.serializedToOpts(serialized),
     parent,
-    children: [],
   });
   project.nodeMap.set(node.id, node);
   childrenFromSerialized(project, nodeMap, node, serialized.children);
   return node;
 }
 
-export type Node = Page | Cell | Rectangle | PathAlignedText;
+/** A node that renders the same thing as the original elsewhere. Maybe on the same page or a different page. */
+export class DuplicatedNode extends BaseNode {
+  type = "duplicated" as const;
+  refId: string; // Only holds a reference because its unclear when during deserialization the reference can be resolved. DuplicateNode may present before the original node.
+  constructor(opt: BaseNodeOpts & { refId: string }) {
+    super({ ...opt, type: "duplicated" });
+    this.refId = opt.refId;
+  }
+}
+
+export function createDuplicatedNode(opt: {
+  refId: string;
+  parent: Node;
+  translation?: Vec2;
+}) {
+  return new DuplicatedNode({ ...opt, id: uuid() });
+}
+
+function duplicatedNodeFromSerialized(
+  project: Project,
+  nodeMap: SeralizedNodeMap,
+  serialized: SerializedDuplicatedNode,
+  parent: Node | null,
+) {
+  const node = new DuplicatedNode({
+    ...serialized,
+    ...BaseNode.serializedToOpts(serialized),
+    parent,
+  });
+  project.nodeMap.set(node.id, node);
+  childrenFromSerialized(project, nodeMap, node, serialized.children);
+  return node;
+}
+
+export type Node = Page | Cell | Rectangle | PathAlignedText | DuplicatedNode;
 
 export class Path {
   type = "path" as const;
@@ -445,10 +479,16 @@ export class Project {
 
     this.children = new RenderQueue("child", []);
     childrenFromSerialized(this, nodeMap, null, serialized?.children ?? []);
-    // serialized?.children.forEach((id) => {
-    //   const node = expectSerializedNode(nodeMap.get(id), "page");
-    //   const page = pageFromSerialized(this, nodeMap, node);
-    // });
+
+    {
+      // Temporarily hacking on page positions:
+      let pageIndex = 0;
+      for (const node of this.nodeMap.values()) {
+        if (node.type === "page") {
+          node.translation = { x: node.width * pageIndex++, y: 0 };
+        }
+      }
+    }
 
     this.meta = {
       name: serialized?.meta?.name ?? "New Project",
@@ -465,7 +505,7 @@ export class Project {
   removePage(page: Page) {
     this.children.removeItem(page);
     this.nodeMap.delete(page.id);
-    // not deleting other page nodes.
+    // not deleting the page's other nodes.
     // They'll be around for undo operations
     // Not sure if they're needed for other connections
     //  They should be cleaned up in serialization.

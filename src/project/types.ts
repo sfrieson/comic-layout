@@ -96,12 +96,25 @@ export type SerializedPathAlignedText = z.infer<
   typeof serializedPathAlignedTextSchema
 >;
 
+const serializedDuplicatedNodeSchema = z.object({
+  type: z.literal("duplicated"),
+  id: z.string(),
+  refId: z.string(),
+  fills: z.array(serializedFillSchema),
+  translation: z.object({ x: z.number(), y: z.number() }),
+  children: z.array(z.string()),
+});
+export type SerializedDuplicatedNode = z.infer<
+  typeof serializedDuplicatedNodeSchema
+>;
+
 // Nodes above here
 const serializedNodeSchema = z.discriminatedUnion("type", [
   serializedPageSchema,
   serializedCellSchema,
   serializedRectangleSchema,
   serializedPathAlignedTextSchema,
+  serializedDuplicatedNodeSchema,
 ]);
 
 export type SerializedNode = z.infer<typeof serializedNodeSchema>;

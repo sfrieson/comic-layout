@@ -1,4 +1,4 @@
-import { type RenderInfo, renderPage } from "../renderer/Renderer.js";
+import { type RenderInfo, renderNode } from "../renderer/Renderer.js";
 import type { Project } from "../project/Project.js";
 import { projectAssetsTable } from "./db.js";
 import { WithCleanup } from "../utils/Composition.js";
@@ -7,11 +7,11 @@ import { requirePageDimensions } from "./projectSelectors.js";
 
 if (import.meta.hot) {
   import.meta.hot.accept("../renderer/Renderer.ts", (e) => {
-    _renderPage = e?.renderPage;
+    _renderNode = e?.renderNode;
   });
 }
 
-let _renderPage = renderPage;
+let _renderNode = renderNode;
 export async function exportPages(project: Project, name: string = "Comic") {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
@@ -44,7 +44,7 @@ export async function exportPages(project: Project, name: string = "Comic") {
     if (page.type !== "page") continue;
     pageNumber++;
     context.clearRect(0, 0, canvas.width, canvas.height);
-    _renderPage(renderInfo, page);
+    _renderNode(renderInfo, page);
     const url = canvas.toDataURL();
     downloadURL(url, `${name} - Page ${pageNumber}.png`);
   }

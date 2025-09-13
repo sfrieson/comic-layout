@@ -40,31 +40,11 @@ export function serializeNode(
   traverse(node, (node) => {
     const { parent, ...rest } = node;
     switch (node.type) {
-      case "page": {
-        serializedNodes.push({
-          ...rest,
-          fills: node.fills.toArray(),
-          children: node.children.toArray().map((child) => child.id),
-        });
-        break;
-      }
-      case "cell": {
-        serializedNodes.push({
-          ...rest,
-          fills: node.fills.toArray(),
-          children: node.children.toArray().map((child) => child.id),
-        });
-        break;
-      }
-      case "rectangle": {
-        serializedNodes.push({
-          ...rest,
-          fills: node.fills.toArray(),
-          children: node.children.toArray().map((child) => child.id),
-        });
-        break;
-      }
-      case "text_path-aligned": {
+      case "page":
+      case "cell":
+      case "rectangle":
+      case "text_path-aligned":
+      case "duplicated": {
         serializedNodes.push({
           ...rest,
           fills: node.fills.toArray(),

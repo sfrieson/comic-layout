@@ -10,6 +10,7 @@ import { ProjectContext, useProjectContextValue } from "./ProjectContext.js";
 import { Project } from "../project/Project.js";
 import { useHotkeys } from "react-hotkeys-hook";
 import { SplitPane } from "./components/SplitPane.js";
+import { GlobalDialogTarget } from "./components/Dialog.js";
 
 export function Root() {
   const project = useStore(store, (state) => state.project);
@@ -17,19 +18,22 @@ export function Root() {
   const projectContextValue = useProjectContextValue();
 
   return (
-    <SplitPane
-      split="vertical"
-      minSize={150}
-      defaultSize={300}
-      primary="second"
-    >
-      {project ? <ProjectPane project={project} /> : <EmptyState />}
-      <div>
-        <ProjectContext.Provider value={projectContextValue}>
-          <Inspector />
-        </ProjectContext.Provider>
-      </div>
-    </SplitPane>
+    <>
+      <SplitPane
+        split="vertical"
+        minSize={150}
+        defaultSize={300}
+        primary="second"
+      >
+        {project ? <ProjectPane project={project} /> : <EmptyState />}
+        <div>
+          <ProjectContext.Provider value={projectContextValue}>
+            <Inspector />
+            <GlobalDialogTarget />
+          </ProjectContext.Provider>
+        </div>
+      </SplitPane>
+    </>
   );
 }
 

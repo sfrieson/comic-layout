@@ -54,6 +54,7 @@ export function nodeToBB(node: Node) {
     case "rectangle":
       return aabbFromRect(node);
     case "text_path-aligned":
+    case "duplicated":
       throw new Error(`Node does not support AABB: ${node.type}`);
     default:
       const _unreachable: never = node;
@@ -68,7 +69,10 @@ export function nodeHitTest(node: Node, pos: Vec2) {
     case "rectangle":
       return nodeToBB(node).contains(pos);
     case "text_path-aligned":
-      console.warn("text_path-aligned does not support hit testing");
+    case "duplicated":
+      console.warn(
+        `${node.type} does not support hit testing. Only SVG hit testing is supported.`,
+      );
       return false;
     default:
       const _unreachable: never = node;
